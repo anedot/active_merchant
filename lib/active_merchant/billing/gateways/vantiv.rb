@@ -53,6 +53,17 @@ module ActiveMerchant #:nodoc:
         "diners_club"      => "DC"
       }.freeze
 
+      CHECK_TYPE = {
+        "personal" => {
+          "checking" => "Checking",
+          "savings"  => "Savings"
+        },
+        "business" => {
+          "checking" => "Corporate",
+          "savings"  => "Corp Savings"
+        }
+      }.freeze
+
       DEFAULT_HEADERS = {
         "Content-Type" => "text/xml"
       }.freeze
@@ -189,19 +200,26 @@ module ActiveMerchant #:nodoc:
       # the customer to the merchant.
       #
       # Supported payment methods:
+      #   * `Check`
       #   * `CreditCard`
       #   * `NetworkTokenizationCreditCard`
       #   * `Token`
       #
-      # Vantiv transaction: `sale`
+      # Vantiv transaction: `sale` or `echeckSale`
       def purchase(money, payment_method, options = {})
+        kind, node = if payment_method_is_check?(payment_method)
+                       [:echeckSales, :echeckSale]
+                     else
+                       [:sale, :sale]
+                     end
+
         request = build_authenticated_xml_request do |doc|
-          doc.sale(transaction_attributes(options)) do
+          doc.public_send(node, transaction_attributes(options)) do
             add_auth_purchase_params(doc, money, payment_method, options)
           end
         end
 
-        commit(:sale, request, money)
+        commit(kind, request, money)
       end
 
       # Public: Refund money to a customer.
@@ -387,7 +405,18 @@ module ActiveMerchant #:nodoc:
       end
 
       def add_payment_method(doc, payment_method)
-        if payment_method_is_token?(payment_method)
+        if payment_method_is_check?(payment_method)
+          doc.echeck do
+            holder_type = payment_method.account_holder_type
+            account_type = payment_method.account_type
+            doc.accType(CHECK_TYPE[holder_type][account_type])
+            doc.accNum(payment_method.account_number)
+            doc.routingNum(payment_method.routing_number)
+
+            check_number = payment_method.number
+            doc.checkNum(check_number) if check_number.present?
+          end
+        elsif payment_method_is_token?(payment_method)
           doc.token do
             token = payment_method.litle_token
             doc.litleToken(token) if token.present?
@@ -551,6 +580,10 @@ module ActiveMerchant #:nodoc:
       def payment_method_is_apple_pay?(payment_method)
         payment_method_is_network_tokenized?(payment_method) &&
           payment_method.source == :apple_pay
+      end
+
+      def payment_method_is_check?(payment_method)
+        payment_method.is_a?(Check)
       end
 
       def payment_method_is_network_tokenized?(payment_method)
