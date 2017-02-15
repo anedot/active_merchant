@@ -445,7 +445,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "Approved", response.params["message"]
   end
 
-  def test43
+  def test43_and_48
     check = Check.new(
       account_holder_type: "business",
       account_number: "6099999992",
@@ -466,7 +466,14 @@ class RemoteVantivCertification < Test::Unit::TestCase
     response = @gateway.purchase(2007, check, options)
     assert_equal "000", response.params["response"]
     assert_equal "Approved", response.params["message"]
-    # Test accountUpdater element?
+
+    options = {
+      order_id: "48"
+    }
+
+    response = @gateway.refund(nil, response.authorization, options)
+    assert_equal "000", response.params["response"]
+    assert_equal "Approved", response.params["message"]
   end
 
   def test44
@@ -561,25 +568,17 @@ class RemoteVantivCertification < Test::Unit::TestCase
     # Test accountUpdater element?
   end
 
-  # If this test is wrong, it might need the txn ID generated from test 43
-  def test48
-    options = {
-      litle_txn_id: "430000000000000001",
-      order_id: "48"
-    }
-
-    response = @gateway.refund(2007, check, options)
-    assert_equal "000", response.params["response"]
-    assert_equal "Approved", response.params["message"]
-  end
-
   def test49
     options = {
-      litle_txn_id: "2",
       order_id: "49"
     }
 
-    response = @gateway.refund(2007, check, options)
+    authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+      litle_txn_id: "2",
+      txn_type: :echeckSales
+    )
+
+    response = @gateway.refund(nil, authorization, options)
     assert_equal "360", response.params["response"]
     assert_equal "No transaction found with specified litleTxnId", response.params["message"]
   end
