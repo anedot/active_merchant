@@ -70,6 +70,8 @@ module ActiveMerchant #:nodoc:
 
       DEFAULT_REPORT_GROUP = "Default Report Group"
 
+      ORDER_ID_MAX_LENGTH = 24
+
       POS_CAPABILITY = "magstripe"
       POS_ENTRY_MODE = "completeread"
       POS_CARDHOLDER_ID = "signature"
@@ -261,7 +263,7 @@ module ActiveMerchant #:nodoc:
       def store(payment_method, options = {})
         request = build_authenticated_xml_request do |doc|
           doc.registerTokenRequest(transaction_attributes(options)) do
-            doc.orderId(truncate(options[:order_id], 24))
+            doc.orderId(truncate(options[:order_id], ORDER_ID_MAX_LENGTH))
             if payment_method_is_paypage_registration_id?(payment_method)
               doc.paypageRegistrationId(payment_method)
             else
@@ -343,7 +345,7 @@ module ActiveMerchant #:nodoc:
       end
 
       def add_auth_purchase_params(doc, money, payment_method, options)
-        doc.orderId(truncate(options[:order_id], 24))
+        doc.orderId(truncate(options[:order_id], ORDER_ID_MAX_LENGTH))
         doc.amount(money)
         add_order_source(doc, payment_method, options)
         add_billing_address(doc, payment_method, options)
@@ -623,7 +625,8 @@ module ActiveMerchant #:nodoc:
 
       def transaction_attributes(options)
         attributes = {}
-        attributes[:id] = truncate(options[:id] || options[:order_id], 24)
+        attributes[:id] = truncate(options[:id] ||
+          options[:order_id], ORDER_ID_MAX_LENGTH)
         attributes[:reportGroup] = options[:merchant] || DEFAULT_REPORT_GROUP
         attributes[:customerId] = options[:customer]
         attributes.delete_if { |_key, value| value.nil? }
