@@ -248,20 +248,37 @@ module ActiveMerchant #:nodoc:
 
       # Public: Refund money to a customer.
       #
-      # Supported authorization:
-      #   * Authorization class
+      # Supported refund sources:
+      #   * Authorization object from a previous Vantiv transaction
+      #   * Check object for crediting directly to a bank account
       #
-      # Vantiv transaction: `credit`
-      def refund(money, authorization, options = {})
-        request = build_authenticated_xml_request do |doc|
-          doc.credit(transaction_attributes(options)) do
-            doc.litleTxnId(authorization.litle_txn_id)
-            doc.amount(money) if money.present?
-            add_descriptor(doc, options)
-          end
-        end
+      # Vantiv transaction: `credit` or `echeckCredit`
+      def refund(money, refund_source, options = {})
+        if refund_source.is_a?(Authorization)
+          kind = refund_type(refund_source.txn_type)
 
-        commit(:credit, request)
+          request = build_authenticated_xml_request do |doc|
+            doc.public_send(kind, transaction_attributes(options)) do
+              doc.litleTxnId(refund_source.litle_txn_id)
+              doc.amount(money) if money.present?
+              add_descriptor(doc, options)
+            end
+          end
+
+          commit(kind, request)
+        elsif refund_source.is_a?(Check)
+          request = build_authenticated_xml_request do |doc|
+            doc.echeckCredit(transaction_attributes(options)) do
+              doc.orderId(truncate(options[:order_id], ORDER_ID_MAX_LENGTH))
+              doc.amount(money)
+              add_order_source(doc, refund_source, options)
+              add_billing_address(doc, refund_source, options)
+              add_payment_method(doc, refund_source)
+            end
+          end
+
+          commit(:echeckCredit, request)
+        end
       end
 
       # Public: Scrub text for sensitive values.
@@ -660,6 +677,10 @@ module ActiveMerchant #:nodoc:
         return @options[:url] if @options[:url].present?
 
         test? ? test_url : live_url
+      end
+
+      def refund_type(kind)
+        kind == :echeckSales ? :echeckCredit : :credit
       end
 
       def void_type(kind)
