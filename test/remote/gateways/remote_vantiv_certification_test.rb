@@ -315,6 +315,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     )
 
     options = {
+      amount: 3001,
       billing_address: {
         first_name: "Tom",
         last_name: "Black"
@@ -323,7 +324,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_source: "telephone"
     }
 
-    response = @gateway.authorize(3001, check, options)
+    response = @gateway.verify(check, options)
     assert_equal "301", response.params["response"]
     assert_equal "Invalid Account Number", response.params["message"]
   end
@@ -337,6 +338,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     )
 
     options = {
+      amount: 3002,
       billing_address: {
         first_name: "John",
         last_name: "Smith"
@@ -345,7 +347,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_source: "telephone"
     }
 
-    response = @gateway.authorize(3002, check, options)
+    response = @gateway.verify(check, options)
     assert_equal "000", response.params["response"]
     assert_equal "Approved", response.params["message"]
   end
@@ -359,6 +361,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     )
 
     options = {
+      amount: 3003,
       billing_address: {
         companyName: "Good Goods Inc",
         first_name: "Robert",
@@ -368,7 +371,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_source: "telephone"
     }
 
-    response = @gateway.authorize(3003, check, options)
+    response = @gateway.verify(check, options)
     assert_equal "950", response.params["response"]
     assert_equal "Declined - Negative Information on File", response.params["message"]
   end
@@ -382,6 +385,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     )
 
     options = {
+      amount: 3004,
       billing_address: {
         companyName: "Green Co",
         first_name: "Peter",
@@ -391,7 +395,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_source: "telephone"
     }
 
-    response = @gateway.authorize(3004, check, options)
+    response = @gateway.verify(check, options)
     assert_equal "951", response.params["response"]
     assert_equal "Absolute Decline", response.params["message"]
   end
