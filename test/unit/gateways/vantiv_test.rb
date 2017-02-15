@@ -15,12 +15,45 @@ class VantivTest < Test::Unit::TestCase
     )
 
     # String returned from AM Gateway as Vantiv "authorization"
-    @authorize_authorization = "100000000000000001;authorization;100"
-    @authorize_authorization_invalid_id = "123456789012345360;authorization;100"
-    @capture_authorization = "100000000000000002;capture;100"
-    @invalid_authorization = "12345;invalid-authorization;0"
-    @refund_authorization = "123456789012345360;credit;100"
-    @purchase_authorization = "100000000000000006;sale;100"
+    @authorize_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+      amount: 100,
+      litle_txn_id: "100000000000000001",
+      txn_type: :authorization
+    )
+    @authorize_authorization_invalid_id = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+      amount: 100,
+      litle_txn_id: "123456789012345360",
+      txn_type: :authorization
+    )
+    @capture_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+      amount: 100,
+      litle_txn_id: "100000000000000002",
+      txn_type: :capture
+    )
+    @invalid_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+      amount: 0,
+      litle_txn_id: "12345",
+      txn_type: :invalid_authorization
+    )
+    @refund_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+      amount: 100,
+      litle_txn_id: "123456789012345360",
+      txn_type: :credit
+    )
+    @refund_without_amount_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+      litle_txn_id: "100000000000000003",
+      txn_type: :credit
+    )
+    @purchase_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+      amount: 100,
+      litle_txn_id: "100000000000000006",
+      txn_type: :sale
+    )
+    @purchase_echeck_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+      amount: 100,
+      litle_txn_id: "84568456",
+      txn_type: :echeckSales
+    )
 
     @credit_card = credit_card
     @apple_pay = ActiveMerchant::Billing::NetworkTokenizationCreditCard.new(
@@ -188,7 +221,7 @@ class VantivTest < Test::Unit::TestCase
 
   def test_capture__credit_card_failed
     response = stub_comms do
-      @gateway.capture(@amount, @credit_card)
+      @gateway.capture(@amount, @authorize_authorization)
     end.respond_with(_response_capture__credit_card_failed)
 
     assert_failure response
@@ -206,7 +239,7 @@ class VantivTest < Test::Unit::TestCase
 
     assert_success response
 
-    assert_equal "100000000000000001;authorization;100", response.authorization
+    assert_equal @authorize_authorization, response.authorization
     assert response.test?
 
     capture = stub_comms do
@@ -216,7 +249,7 @@ class VantivTest < Test::Unit::TestCase
     end.respond_with(_response_capture__credit_card_successful)
 
     assert_success capture
-    assert_equal "100000000000000002;capture;100", capture.authorization
+    assert_equal @capture_authorization, capture.authorization
     assert capture.test?
   end
 
@@ -286,7 +319,7 @@ class VantivTest < Test::Unit::TestCase
     end.respond_with(_response_purchase__check_successful)
 
     assert_success response
-    assert_equal "84568456;echeckSales;100", response.authorization
+    assert_equal @purchase_echeck_authorization, response.authorization
     assert response.test?
     assert_equal "000", response.params["response"]
     assert_equal "Approved", response.params["message"]
@@ -408,7 +441,7 @@ class VantivTest < Test::Unit::TestCase
     end.respond_with(_response_purchase__credit_card_successful)
 
     assert_success response
-    assert_equal "100000000000000006;sale;100", response.authorization
+    assert_equal @purchase_authorization, response.authorization
     assert response.test?
   end
 
@@ -490,7 +523,7 @@ class VantivTest < Test::Unit::TestCase
       @gateway.purchase(@amount, @credit_card)
     end.respond_with(_response_purchase__credit_card_successful)
 
-    assert_equal "100000000000000006;sale;100", response.authorization
+    assert_equal @purchase_authorization, response.authorization
 
     refund = stub_comms do
       @gateway.refund(@amount, response.authorization)
@@ -672,7 +705,7 @@ class VantivTest < Test::Unit::TestCase
     end.respond_with(_response_authorize__credit_card_successful)
 
     assert_success response
-    assert_equal "100000000000000001;authorization;100", response.authorization
+    assert_equal @authorize_authorization, response.authorization
 
     void = stub_comms do
       @gateway.void(response.authorization)
@@ -734,7 +767,7 @@ class VantivTest < Test::Unit::TestCase
       @gateway.refund(@amount, @authorize_authorization)
     end.respond_with(_response_refund__purchase_successful)
 
-    assert_equal "100000000000000003;credit;", refund.authorization
+    assert_equal @refund_without_amount_authorization, refund.authorization
 
     void = stub_comms do
       @gateway.void(refund.authorization)
