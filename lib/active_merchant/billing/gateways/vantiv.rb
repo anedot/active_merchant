@@ -101,12 +101,36 @@ module ActiveMerchant #:nodoc:
       SOURCE_RETAIL = "retail"
       SOURCE_ECOMMERCE = "ecommerce"
 
-      VOID_TYPE_AUTHORIZATION = "authorization"
+      VOID_TYPE_AUTHORIZATION = :authorization
 
       XML_NAMESPACE = "http://www.litle.com/schema"
       XML_REQUEST_ROOT = "litleOnlineRequest"
       XML_RESPONSE_NODES = %w[message response].freeze
       XML_RESPONSE_ROOT = "litleOnlineResponse"
+
+      # Public: Object that represents a previous Vantiv response.
+      #
+      # Example:
+      #   auth = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+      #     amount: 100,
+      #     litle_txn_id: "100000000000000001",
+      #     txn_type: :authorization
+      #   )
+      class Authorization
+        attr_reader :amount, :litle_txn_id, :txn_type
+
+        def initialize(amount: nil, litle_txn_id: nil, txn_type: nil)
+          @amount = amount
+          @litle_txn_id = litle_txn_id
+          @txn_type = txn_type
+        end
+
+        def ==(other)
+          amount == other.amount &&
+            litle_txn_id == other.litle_txn_id &&
+            txn_type == other.txn_type
+        end
+      end
 
       # Public: Vantiv token object represents the tokenized credit card number
       # from Vantiv. Unlike other vault-like solutions, Vantiv only stores the
@@ -174,15 +198,13 @@ module ActiveMerchant #:nodoc:
       # funds from the customer to the merchant.
       #
       # Supported authorization:
-      #   * Authorization (`String`)
+      #   * Authorization class
       #
       # Vantiv transaction: `capture`
       def capture(money, authorization, options = {})
-        transaction_id, = split_authorization(authorization)
-
         request = build_authenticated_xml_request do |doc|
           doc.capture_(transaction_attributes(options)) do
-            doc.litleTxnId(transaction_id)
+            doc.litleTxnId(authorization.litle_txn_id)
             doc.amount(money) if money.present?
           end
         end
@@ -227,15 +249,13 @@ module ActiveMerchant #:nodoc:
       # Public: Refund money to a customer.
       #
       # Supported authorization:
-      #   * Authorization (`String`)
+      #   * Authorization class
       #
       # Vantiv transaction: `credit`
       def refund(money, authorization, options = {})
-        transaction_id, = split_authorization(authorization)
-
         request = build_authenticated_xml_request do |doc|
           doc.credit(transaction_attributes(options)) do
-            doc.litleTxnId(transaction_id)
+            doc.litleTxnId(authorization.litle_txn_id)
             doc.amount(money) if money.present?
             add_descriptor(doc, options)
           end
@@ -314,12 +334,16 @@ module ActiveMerchant #:nodoc:
       #
       # Vantiv transaction: `void` or `authReversal`
       def void(authorization, options = {})
-        transaction_id, kind, money = split_authorization(authorization)
-        money = options[:amount] if options[:amount].present?
+        kind = authorization.txn_type
+        money = if options[:amount].present?
+                  options[:amount]
+                else
+                  authorization.amount
+                end
 
         request = build_authenticated_xml_request do |doc|
-          doc.send(void_type(kind), transaction_attributes(options)) do
-            doc.litleTxnId(transaction_id)
+          doc.public_send(void_type(kind), transaction_attributes(options)) do
+            doc.litleTxnId(authorization.litle_txn_id)
             doc.amount(money) if void_type(kind) == :authReversal
           end
         end
@@ -492,7 +516,11 @@ module ActiveMerchant #:nodoc:
         if kind == :registerToken
           parsed[:litleToken]
         else
-          "#{parsed[:litleTxnId]};#{kind};#{money}"
+          Authorization.new(
+            amount: money,
+            litle_txn_id: parsed[:litleTxnId],
+            txn_type: kind
+          )
         end
       end
 
@@ -609,11 +637,6 @@ module ActiveMerchant #:nodoc:
           version: SCHEMA_VERSION,
           xmlns: XML_NAMESPACE
         }
-      end
-
-      def split_authorization(authorization)
-        transaction_id, kind, money = authorization.to_s.split(";")
-        [transaction_id, kind, money]
       end
 
       def success_from(kind, parsed)
