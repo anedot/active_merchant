@@ -116,6 +116,28 @@ class RemoteVantivCertification < Test::Unit::TestCase
     sale_assertions(40040, credit_card, options, :avs => "A", :cvv => nil)
   end
 
+  def test5
+    credit_card = NetworkTokenizationCreditCard.new(
+      brand: "visa",
+      month: "05",
+      number: "4100200300011001",
+      payment_cryptogram: "BwABBJQ1AgAAA AAgJDUCAAAAAA A=",
+      verification_value: "463",
+      year: "2021"
+    )
+
+    options = {
+      order_id: "5"
+    }
+
+    auth_assertions(10100, credit_card, options, avs: "U", cvv: "M")
+
+    # 5: authorize avs
+    authorize_avs_assertions(credit_card, options, avs: "U", cvv: "M")
+
+    sale_assertions(10100, credit_card, options, avs: "U", cvv: "M")
+  end
+
   def test6
     credit_card = CreditCard.new(:number => '4457010100000008', :month => '06',
                                  :year => '2021', :brand => 'visa',
