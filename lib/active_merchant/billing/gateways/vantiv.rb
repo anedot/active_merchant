@@ -202,6 +202,7 @@ module ActiveMerchant #:nodoc:
       # Supported payment methods:
       #   * `CreditCard`
       #   * `NetworkTokenizationCreditCard`
+      #   * `Registration`
       #   * `Token`
       #
       # Vantiv transaction: `authorization`
@@ -219,7 +220,7 @@ module ActiveMerchant #:nodoc:
       # funds from the customer to the merchant.
       #
       # Supported authorization:
-      #   * Authorization class
+      #   * `Authorization`
       #
       # Vantiv transaction: `capture`
       def capture(money, authorization, options = {})
@@ -248,6 +249,7 @@ module ActiveMerchant #:nodoc:
       #   * `Check`
       #   * `CreditCard`
       #   * `NetworkTokenizationCreditCard`
+      #   * `Registration`
       #   * `Token`
       #
       # Vantiv transaction: `sale` or `echeckSale`
@@ -270,8 +272,9 @@ module ActiveMerchant #:nodoc:
       # Public: Refund money to a customer.
       #
       # Supported refund sources:
-      #   * Authorization object from a previous Vantiv transaction
-      #   * Check object for crediting directly to a bank account
+      #   * `Authorization`
+      #   * `Check`
+      #   * `Registration`
       #
       # Vantiv transaction: `credit` or `echeckCredit`
       def refund(money, refund_source, options = {})
