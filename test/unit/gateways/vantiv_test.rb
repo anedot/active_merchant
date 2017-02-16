@@ -199,6 +199,19 @@ class VantivTest < Test::Unit::TestCase
   end
 
   ## capture
+  def test_capture__authorization_failed
+    response = stub_comms do
+      @gateway.capture(@amount, @invalid_authorization)
+    end.respond_with(_response_capture__authorization_failed)
+
+    assert_failure response
+    assert_equal "360", response.params["response"]
+    assert_equal(
+      "No transaction found with specified litleTxnId",
+      response.message
+    )
+  end
+
   def test_capture__authorization_request
     stub_commit do |_, data, _|
       assert_match %r(<capture .*</capture>)m, data
@@ -217,19 +230,6 @@ class VantivTest < Test::Unit::TestCase
     end
 
     @gateway.capture(nil, @authorize_authorization)
-  end
-
-  def test_capture__credit_card_failed
-    response = stub_comms do
-      @gateway.capture(@amount, @authorize_authorization)
-    end.respond_with(_response_capture__credit_card_failed)
-
-    assert_failure response
-    assert_equal "360", response.params["response"]
-    assert_equal(
-      "No transaction found with specified litleTxnId",
-      response.message
-    )
   end
 
   def test_capture__credit_card_successful
@@ -1008,7 +1008,7 @@ class VantivTest < Test::Unit::TestCase
   end
 
   # capture
-  def _response_capture__credit_card_failed
+  def _response_capture__authorization_failed
     %(
       <litleOnlineResponse version='8.22' response='0' message='Valid Format' xmlns='http://www.litle.com/schema'>
         <captureResponse id='' reportGroup='Default Report Group' customerId=''>
