@@ -132,6 +132,27 @@ module ActiveMerchant #:nodoc:
         end
       end
 
+      # Public: Vantiv eProtect registration object represents the values
+      # returned from Vantiv as part of an eProtect request.
+      #
+      # Example:
+      #  reg = ActiveMerchant::Billing::VantivGateway::Registration.new(
+      #    "1234567890",
+      #    month: "9",
+      #    verification_value: "424",
+      #    year: "2021"
+      #  )
+      class Registration
+        attr_reader :id, :month, :verification_value, :year
+
+        def initialize(id, month: "", verification_value: "", year: "")
+          @id = id
+          @month = month
+          @verification_value = verification_value
+          @year = year
+        end
+      end
+
       # Public: Vantiv token object represents the tokenized credit card number
       # from Vantiv. Unlike other vault-like solutions, Vantiv only stores the
       # "account number".
@@ -278,6 +299,19 @@ module ActiveMerchant #:nodoc:
           end
 
           commit(:echeckCredit, request)
+        elsif refund_source.is_a?(Registration)
+          request = build_authenticated_xml_request do |doc|
+            doc.credit(transaction_attributes(options)) do
+              doc.orderId(truncate(options[:order_id], ORDER_ID_MAX_LENGTH))
+              doc.amount(money)
+              add_order_source(doc, refund_source, options)
+              add_billing_address(doc, refund_source, options)
+              add_payment_method(doc, refund_source)
+              add_descriptor(doc, options)
+            end
+          end
+
+          commit(:credit, request)
         end
       end
 
@@ -294,15 +328,16 @@ module ActiveMerchant #:nodoc:
       #
       # Supported payment_methods:
       #   * `CreditCard`
-      #   * PayPage registration Id (String)
+      #   * `Registration`
       #
       # Vantiv transaction: `registerTokenRequest`
       def store(payment_method, options = {})
         request = build_authenticated_xml_request do |doc|
           doc.registerTokenRequest(transaction_attributes(options)) do
             doc.orderId(truncate(options[:order_id], ORDER_ID_MAX_LENGTH))
-            if payment_method_is_paypage_registration_id?(payment_method)
-              doc.paypageRegistrationId(payment_method)
+
+            if payment_method_is_registration?(payment_method)
+              doc.paypageRegistrationId(payment_method.id)
             else
               doc.accountNumber(payment_method.number)
 
@@ -463,6 +498,16 @@ module ActiveMerchant #:nodoc:
           doc.token do
             token = payment_method.litle_token
             doc.litleToken(token) if token.present?
+
+            expiration = exp_date(payment_method)
+            doc.expDate(expiration) if expiration.present?
+
+            cvv = payment_method.verification_value
+            doc.cardValidationNum(cvv) if cvv.present?
+          end
+        elsif payment_method_is_registration?(payment_method)
+          doc.paypage do
+            doc.paypageRegistrationId(payment_method.id)
 
             expiration = exp_date(payment_method)
             doc.expDate(expiration) if expiration.present?
@@ -637,10 +682,8 @@ module ActiveMerchant #:nodoc:
         payment_method.is_a?(NetworkTokenizationCreditCard)
       end
 
-      # Limited support for paypage at this time - if string in that context
-      # then it's a paypage registration id
-      def payment_method_is_paypage_registration_id?(payment_method)
-        payment_method.is_a?(String)
+      def payment_method_is_registration?(payment_method)
+        payment_method.is_a?(String) || payment_method.is_a?(Registration)
       end
 
       # TODO: Remove string check once `Token` is fully supported
