@@ -686,12 +686,11 @@ module ActiveMerchant #:nodoc:
       end
 
       def payment_method_is_registration?(payment_method)
-        payment_method.is_a?(String) || payment_method.is_a?(Registration)
+        payment_method.is_a?(Registration)
       end
 
-      # TODO: Remove string check once `Token` is fully supported
       def payment_method_is_token?(payment_method)
-        payment_method.is_a?(String) || payment_method.is_a?(Token)
+        payment_method.is_a?(Token)
       end
 
       def root_attributes
