@@ -70,6 +70,13 @@ class VantivTest < Test::Unit::TestCase
     @paypage_id = "cDZJcmd1VjNlYXNaSlRMTGpocVZQY1NNlYE4ZW5UTko4NU9KK3" \
                   "p1L1p1VzE4ZWVPQVlSUHNITG1JN2I0NzlyTg="
 
+    @registration = ActiveMerchant::Billing::VantivGateway::Registration.new(
+      @paypage_id,
+      month: "01",
+      verification_value: "098",
+      year: "2020"
+    )
+
     @token = ActiveMerchant::Billing::VantivGateway::Token.new(
       "1234123412341234",
       month: "01",
@@ -170,6 +177,35 @@ class VantivTest < Test::Unit::TestCase
     end
 
     @gateway.authorize(@amount, @credit_card)
+  end
+
+  def test_authorize__registration_request
+    stub_commit do |_, data, _|
+      assert_match %r(<authorization .*</authorization>)m, data
+      assert_match %r(<orderId>this-must-be-truncated--</orderId>), data
+      assert_match %r(<amount>#{@amount}</amount>), data
+      assert_match %r(<orderSource>ecommerce</orderSource>), data
+      # registration nodes
+      assert_match %r(<paypage>.*</paypage>)m, data
+      assert_match(
+        %r(<paypageRegistrationId>#{@paypage_id}</paypageRegistrationId>),
+        data
+      )
+      assert_match %r(<expDate>0120</expDate>), data
+      assert_match %r(<cardValidationNum>098</cardValidationNum>), data
+      # nodes that shouldn't be present by default
+      assert_no_match %r(<billToAddress>)m, data
+      assert_no_match %r(<shipToAddress>), data
+      assert_no_match %r(<pos>), data
+      assert_no_match %r(<customBilling>), data
+      assert_no_match %r(<debtRepayment>), data
+    end
+
+    @gateway.authorize(
+      @amount,
+      @registration,
+      order_id: "this-must-be-truncated--to-24-chars"
+    )
   end
 
   def test_authorize__token_request
@@ -445,6 +481,35 @@ class VantivTest < Test::Unit::TestCase
     assert response.test?
   end
 
+  def test_purchase__registration_request
+    stub_commit do |_, data, _|
+      assert_match %r(<sale .*</sale>)m, data
+      assert_match %r(<orderId>this-must-be-truncated--</orderId>), data
+      assert_match %r(<amount>#{@amount}</amount>), data
+      assert_match %r(<orderSource>ecommerce</orderSource>), data
+      # registration nodes
+      assert_match %r(<paypage>.*</paypage>)m, data
+      assert_match(
+        %r(<paypageRegistrationId>#{@paypage_id}</paypageRegistrationId>),
+        data
+      )
+      assert_match %r(<expDate>0120</expDate>), data
+      assert_match %r(<cardValidationNum>098</cardValidationNum>), data
+      # nodes that shouldn't be present by default
+      assert_no_match %r(<billToAddress>)m, data
+      assert_no_match %r(<shipToAddress>), data
+      assert_no_match %r(<pos>), data
+      assert_no_match %r(<customBilling>), data
+      assert_no_match %r(<debtRepayment>), data
+    end
+
+    @gateway.purchase(
+      @amount,
+      @registration,
+      order_id: "this-must-be-truncated--to-24-chars"
+    )
+  end
+
   def test_purchase__token_request
     stub_commit do |_, data, _|
       assert_match %r(<sale .*</sale>)m, data
@@ -534,6 +599,77 @@ class VantivTest < Test::Unit::TestCase
     assert_success refund
   end
 
+  def test_refund__registration_request
+    stub_commit do |_, data, _|
+      assert_match %r(<credit .*</credit>)m, data
+      assert_match %r(<orderId>this-must-be-truncated--</orderId>), data
+      assert_match %r(<amount>#{@amount}</amount>), data
+      assert_match %r(<orderSource>ecommerce</orderSource>), data
+      # registration nodes
+      assert_match %r(<paypage>.*</paypage>)m, data
+      assert_match(
+        %r(<paypageRegistrationId>#{@paypage_id}</paypageRegistrationId>),
+        data
+      )
+      assert_match %r(<expDate>0120</expDate>), data
+      assert_match %r(<cardValidationNum>098</cardValidationNum>), data
+      # nodes that shouldn't be present by default
+      assert_no_match %r(<billToAddress>)m, data
+      assert_no_match %r(<customBilling>), data
+    end
+
+    @gateway.refund(
+      @amount,
+      @registration,
+      order_id: "this-must-be-truncated--to-24-chars"
+    )
+  end
+
+  def test_refund__registration_request_with_descriptor
+    stub_commit do |_, data, _|
+      assert_match %r(<credit .*</credit>)m, data
+      assert_match(
+        %r(<customBilling>.*<descriptor>descriptor-name</descriptor>)m,
+        data
+      )
+      assert_match(
+        %r(<customBilling>.*<phone>descriptor-phone</phone>)m,
+        data
+      )
+    end
+
+    @gateway.refund(
+      @amount,
+      @registration,
+      descriptor_name: "descriptor-name",
+      descriptor_phone: "descriptor-phone"
+    )
+  end
+
+  ## registration
+  def test_registration__initialize_with_options
+    reg = ActiveMerchant::Billing::VantivGateway::Registration.new(
+      "12345-12345",
+      month: "06",
+      verification_value: "776",
+      year: "2021"
+    )
+
+    assert_equal "12345-12345", reg.id
+    assert_equal "06", reg.month
+    assert_equal "776", reg.verification_value
+    assert_equal "2021", reg.year
+  end
+
+  def test_registration__initialize_without_options
+    reg = ActiveMerchant::Billing::VantivGateway::Registration.new("444-888")
+
+    assert_equal "444-888", reg.id
+    assert_equal "", reg.month
+    assert_equal "", reg.verification_value
+    assert_equal "", reg.year
+  end
+
   ## scrubbing
   def test_scrub
     assert_equal _fixture__after_scrub, @gateway.scrub(_fixture__before_scrub)
@@ -589,7 +725,7 @@ class VantivTest < Test::Unit::TestCase
     assert_equal "1111222233330123", response.authorization
   end
 
-  def test_store__paypage_registration_id_request
+  def test_store__registration_request
     stub_commit do |_, data, _|
       assert_match %r(<registerTokenRequest .*</registerTokenRequest>)m, data
       assert_match(
@@ -600,13 +736,13 @@ class VantivTest < Test::Unit::TestCase
       assert_no_match %r(<orderId>), data
     end
 
-    @gateway.store(@paypage_id)
+    @gateway.store(@registration)
   end
 
-  def test_store__paypage_registration_id_successful
+  def test_store__registration_successful
     response = stub_comms do
-      @gateway.store(@paypage_id)
-    end.respond_with(_response_store__paypage_registration_id_successful)
+      @gateway.store(@registration)
+    end.respond_with(_response_store__registration_successful)
 
     assert_success response
     assert_equal "1111222233334444", response.authorization
@@ -1146,7 +1282,7 @@ class VantivTest < Test::Unit::TestCase
     )
   end
 
-  def _response_store__paypage_registration_id_successful
+  def _response_store__registration_successful
     %(
       <litleOnlineResponse version='8.2' response='0' message='Valid Format' xmlns='http://www.litle.com/schema'>
         <registerTokenResponse id='99999' reportGroup='Default Report Group' customerId=''>
