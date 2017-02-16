@@ -14,49 +14,48 @@ class VantivTest < Test::Unit::TestCase
       merchant_id: @merchant_id
     )
 
-    # String returned from AM Gateway as Vantiv "authorization"
-    @authorize_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+    @authorize_authorization = VantivGateway::Authorization.new(
       amount: 100,
       litle_txn_id: "100000000000000001",
       txn_type: :authorization
     )
-    @authorize_authorization_invalid_id = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+    @authorize_authorization_invalid_id = VantivGateway::Authorization.new(
       amount: 100,
       litle_txn_id: "123456789012345360",
       txn_type: :authorization
     )
-    @capture_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+    @capture_authorization = VantivGateway::Authorization.new(
       amount: 100,
       litle_txn_id: "100000000000000002",
       txn_type: :capture
     )
-    @invalid_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+    @invalid_authorization = VantivGateway::Authorization.new(
       amount: 0,
       litle_txn_id: "12345",
       txn_type: :invalid_authorization
     )
-    @refund_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+    @refund_authorization = VantivGateway::Authorization.new(
       amount: 100,
       litle_txn_id: "123456789012345360",
       txn_type: :credit
     )
-    @refund_without_amount_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+    @refund_without_amount_authorization = VantivGateway::Authorization.new(
       litle_txn_id: "100000000000000003",
       txn_type: :credit
     )
-    @purchase_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+    @purchase_authorization = VantivGateway::Authorization.new(
       amount: 100,
       litle_txn_id: "100000000000000006",
       txn_type: :sale
     )
-    @purchase_echeck_authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+    @purchase_echeck_authorization = VantivGateway::Authorization.new(
       amount: 100,
       litle_txn_id: "84568456",
       txn_type: :echeckSales
     )
 
     @credit_card = credit_card
-    @apple_pay = ActiveMerchant::Billing::NetworkTokenizationCreditCard.new(
+    @apple_pay = NetworkTokenizationCreditCard.new(
       {
         month: "01",
         year: "2012",
@@ -70,14 +69,14 @@ class VantivTest < Test::Unit::TestCase
     @paypage_id = "cDZJcmd1VjNlYXNaSlRMTGpocVZQY1NNlYE4ZW5UTko4NU9KK3" \
                   "p1L1p1VzE4ZWVPQVlSUHNITG1JN2I0NzlyTg="
 
-    @registration = ActiveMerchant::Billing::VantivGateway::Registration.new(
+    @registration = VantivGateway::Registration.new(
       @paypage_id,
       month: "01",
       verification_value: "098",
       year: "2020"
     )
 
-    @token = ActiveMerchant::Billing::VantivGateway::Token.new(
+    @token = VantivGateway::Token.new(
       "1234123412341234",
       month: "01",
       verification_value: "098",
@@ -648,7 +647,7 @@ class VantivTest < Test::Unit::TestCase
 
   ## registration
   def test_registration__initialize_with_options
-    reg = ActiveMerchant::Billing::VantivGateway::Registration.new(
+    reg = VantivGateway::Registration.new(
       "12345-12345",
       month: "06",
       verification_value: "776",
@@ -662,7 +661,7 @@ class VantivTest < Test::Unit::TestCase
   end
 
   def test_registration__initialize_without_options
-    reg = ActiveMerchant::Billing::VantivGateway::Registration.new("444-888")
+    reg = VantivGateway::Registration.new("444-888")
 
     assert_equal "444-888", reg.id
     assert_equal "", reg.month
@@ -750,7 +749,7 @@ class VantivTest < Test::Unit::TestCase
 
   ## token
   def test_token__initialize_with_options
-    token = ActiveMerchant::Billing::VantivGateway::Token.new(
+    token = VantivGateway::Token.new(
       "987654321",
       month: "01",
       verification_value: "098",
@@ -766,7 +765,7 @@ class VantivTest < Test::Unit::TestCase
   end
 
   def test_token__initialize_without_options
-    token = ActiveMerchant::Billing::VantivGateway::Token.new("555666777")
+    token = VantivGateway::Token.new("555666777")
 
     assert_equal "555666777", token.payment_data
     assert_equal "555666777", token.litle_token
