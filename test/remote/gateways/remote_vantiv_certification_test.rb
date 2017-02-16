@@ -445,6 +445,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "Approved", response.params["message"]
   end
 
+  # The documentation says that Test 48 should use the ID returned from Test 43
   def test43_and_48
     check = Check.new(
       account_holder_type: "business",
@@ -565,7 +566,6 @@ class RemoteVantivCertification < Test::Unit::TestCase
     response = @gateway.refund(1007, check, options)
     assert_equal "000", response.params["response"]
     assert_equal "Approved", response.params["message"]
-    # Test accountUpdater element?
   end
 
   def test49
