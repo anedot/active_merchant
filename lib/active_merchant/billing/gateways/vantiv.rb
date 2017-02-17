@@ -574,7 +574,8 @@ module ActiveMerchant #:nodoc:
             end
 
             # Payment method information takes precendence over address
-            customer[attribute] = payment[attribute] || address[attribute]
+            customer[attribute] = payment[attribute].presence ||
+                                  address[attribute]
           end
         end
       end
