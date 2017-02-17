@@ -1031,6 +1031,31 @@ class VantivTest < Test::Unit::TestCase
     @gateway.purchase(@amount, @credit_card)
   end
 
+  def test_xml__request_with_name_from_billing_address
+    stub_commit do |_, data, |
+      assert_match %r(<billToAddress>.*</billToAddress>)m, data
+      assert_match %r(<name>Mike J. Hammer</name>), data
+    end
+
+    # The credit card should not have a name for this test
+    credit_card = CreditCard.new(
+      brand: "visa",
+      month: "01",
+      number: "4457010000000009",
+      verification_value: "349",
+      year: "2021"
+    )
+
+    options = {
+      billing_address: {
+        name: "Mike J. Hammer"
+      }
+    }
+
+    # Use `#purchase` to test that name comes from billing address options
+    @gateway.purchase(@amount, credit_card, options)
+  end
+
   # Some requests use a payment method that results in a `pos` node created.
   # The values of the nodes below `<pos>` are the same regardless of the action
   # or the payment method. (Probably always a credit card with track data).
