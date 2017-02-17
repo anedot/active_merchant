@@ -150,6 +150,56 @@ class RemoteVantivTest < Test::Unit::TestCase
     assert_equal 'Approved', void.message
   end
 
+  def test_authorize_and_purchase_and_credit_with_token
+    options = {
+        :order_id => transaction_id,
+        :billing_address => {
+            :name => 'John Smith',
+            :address1 => '1 Main St.',
+            :city => 'Burlington',
+            :state => 'MA',
+            :zip => '01803-3747',
+            :country => 'US'
+        }
+    }
+
+    credit_card = CreditCard.new(:number             => '5435101234510196',
+                                 :month              => '11',
+                                 :year               => '2014',
+                                 :brand              => 'master',
+                                 :verification_value => '987')
+
+    # authorize
+    assert auth_response = @gateway.authorize(0, credit_card, options)
+
+    assert_success auth_response
+    assert_equal 'Approved', auth_response.message
+    token = ActiveMerchant::Billing::VantivGateway::Token.new(
+      auth_response.params["tokenResponse_litleToken"],
+      month: credit_card.month,
+      verification_value: credit_card.verification_value,
+      year: credit_card.year
+    )
+    assert_equal '0196', token.litle_token[-4, 4]
+    assert %w(801 802).include? auth_response.params["tokenResponse_tokenResponseCode"]
+
+    # purchase
+    purchase_options = options.merge({ :order_id => transaction_id })
+
+    assert purchase_response = @gateway.purchase(100, token, purchase_options)
+    assert_success purchase_response
+    assert_equal 'Approved', purchase_response.message
+    assert_equal purchase_options[:order_id], purchase_response.params['orderId']
+
+    # credit
+    credit_options = options.merge({ :order_id => transaction_id })
+
+    assert credit_response = @gateway.refund(500, token, credit_options)
+    assert_success credit_response
+    assert_equal 'Approved', credit_response.message
+    assert_equal credit_options[:order_id], credit_response.params['orderId']
+  end
+
   def test_void_authorization
     assert auth = @gateway.authorize(10010, @credit_card1, @options)
 
