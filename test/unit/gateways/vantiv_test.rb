@@ -598,6 +598,55 @@ class VantivTest < Test::Unit::TestCase
     assert_success refund
   end
 
+  def test_refund__credit_card_request
+    stub_commit do |_, data, _|
+      assert_match %r(<credit .*</credit>)m, data
+      assert_match %r(<orderId>this-must-be-truncated--</orderId>), data
+      assert_match %r(<amount>#{@amount}</amount>), data
+      assert_match %r(<orderSource>ecommerce</orderSource>), data
+      # address nodes
+      assert_match %r(<billToAddress>.*</billToAddress>)m, data
+      assert_match %r(<name>Longbob Longsen</name>), data
+      assert_match %r(<firstName>Longbob</firstName>), data
+      assert_match %r(<lastName>Longsen</lastName>), data
+      # card nodes
+      assert_match %r(<card>.*</card>)m, data
+      assert_match %r(<type>VI</type>), data
+      assert_match %r(<number>4242424242424242</number>), data
+      assert_match %r(<expDate>0918</expDate>), data
+      assert_match %r(<cardValidationNum>123</cardValidationNum>), data
+      # nodes that shouldn't be present by default
+      assert_no_match %r(<customBilling>), data
+    end
+
+    @gateway.refund(
+      @amount,
+      @credit_card,
+      order_id: "this-must-be-truncated--to-24-chars"
+    )
+  end
+
+  def test_refund__credit_card_request_with_descriptor
+    stub_commit do |_, data, _|
+      assert_match %r(<credit .*</credit>)m, data
+      assert_match(
+        %r(<customBilling>.*<descriptor>descriptor-name</descriptor>)m,
+        data
+      )
+      assert_match(
+        %r(<customBilling>.*<phone>descriptor-phone</phone>)m,
+        data
+      )
+    end
+
+    @gateway.refund(
+      @amount,
+      @credit_card,
+      descriptor_name: "descriptor-name",
+      descriptor_phone: "descriptor-phone"
+    )
+  end
+
   def test_refund__registration_request
     stub_commit do |_, data, _|
       assert_match %r(<credit .*</credit>)m, data
@@ -640,6 +689,50 @@ class VantivTest < Test::Unit::TestCase
     @gateway.refund(
       @amount,
       @registration,
+      descriptor_name: "descriptor-name",
+      descriptor_phone: "descriptor-phone"
+    )
+  end
+
+  def test_refund__token_request
+    stub_commit do |_, data, _|
+      assert_match %r(<credit .*</credit>)m, data
+      assert_match %r(<orderId>this-must-be-truncated--</orderId>), data
+      assert_match %r(<amount>#{@amount}</amount>), data
+      assert_match %r(<orderSource>ecommerce</orderSource>), data
+      # token nodes
+      assert_match %r(<token>.*</token>)m, data
+      assert_match %r(<litleToken>1234123412341234</litleToken>), data
+      assert_match %r(<expDate>0120</expDate>), data
+      assert_match %r(<cardValidationNum>098</cardValidationNum>), data
+      # nodes that shouldn't be present by default
+      assert_no_match %r(<billToAddress>)m, data
+      assert_no_match %r(<customBilling>), data
+    end
+
+    @gateway.refund(
+      @amount,
+      @token,
+      order_id: "this-must-be-truncated--to-24-chars"
+    )
+  end
+
+  def test_refund__registration_token_with_descriptor
+    stub_commit do |_, data, _|
+      assert_match %r(<credit .*</credit>)m, data
+      assert_match(
+        %r(<customBilling>.*<descriptor>descriptor-name</descriptor>)m,
+        data
+      )
+      assert_match(
+        %r(<customBilling>.*<phone>descriptor-phone</phone>)m,
+        data
+      )
+    end
+
+    @gateway.refund(
+      @amount,
+      @token,
       descriptor_name: "descriptor-name",
       descriptor_phone: "descriptor-phone"
     )
