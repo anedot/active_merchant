@@ -302,7 +302,9 @@ module ActiveMerchant #:nodoc:
           end
 
           commit(:echeckCredit, request)
-        elsif refund_source.is_a?(Registration)
+        elsif refund_source.is_a?(CreditCard) ||
+              refund_source.is_a?(Registration) ||
+              refund_source.is_a?(Token)
           request = build_authenticated_xml_request do |doc|
             doc.credit(transaction_attributes(options)) do
               doc.orderId(truncate(options[:order_id], ORDER_ID_MAX_LENGTH))
