@@ -552,8 +552,18 @@ class RemoteVantivCertification < Test::Unit::TestCase
     }
 
     response = @gateway.purchase(2004, check, options)
+
     assert_equal "000", response.params["response"]
     assert_equal "Approved", response.params["message"]
+
+    # eCheck Void transaction test
+    options[:order_id] = "42_void"
+
+    sale_response = @gateway.purchase(2004, check, options)
+    void_response = @gateway.void(sale_response.authorization, options)
+
+    assert_equal "000", void_response.params["response"]
+    assert_equal "Approved", void_response.params["message"]
   end
 
   # The documentation says that Test 48 should use the ID returned from Test 43
@@ -652,9 +662,19 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_source: "telephone"
     }
 
-    response = @gateway.refund(1003, check, options)
-    assert_equal "000", response.params["response"]
-    assert_equal "Approved", response.params["message"]
+    credit_response = @gateway.refund(1003, check, options)
+
+    assert_equal "000", credit_response.params["response"]
+    assert_equal "Approved", credit_response.params["message"]
+
+    # eCheck Void transaction test
+    options[:order_id] = "46_void"
+
+    credit_response = @gateway.refund(1003, check, options)
+    void_response = @gateway.void(credit_response.authorization, options)
+
+    assert_equal "000", void_response.params["response"]
+    assert_equal "Approved", void_response.params["message"]
   end
 
   def test47
@@ -685,18 +705,22 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_id: "49"
     }
 
-    authorization = ActiveMerchant::Billing::VantivGateway::Authorization.new(
+    authorization = VantivGateway::Authorization.new(
       litle_txn_id: "2",
       txn_type: :echeckSales
     )
 
-    response = @gateway.refund(nil, authorization, options)
-    assert_equal "360", response.params["response"]
-    assert_equal "No transaction found with specified litleTxnId", response.params["message"]
-  end
+    credit_response = @gateway.refund(nil, authorization, options)
 
-  ### eCheck Void certification tests
-  ## Not Implemented - Required for all eCheck users
+    assert_equal "360", credit_response.params["response"]
+    assert_equal "No transaction found with specified litleTxnId", credit_response.params["message"]
+
+    # eCheck Void transaction test
+    void_response = @gateway.void(authorization)
+
+    assert_equal "360", void_response.params["response"]
+    assert_equal "No transaction found with specified litleTxnId", void_response.params["message"]
+  end
 
   ### Order Ids 50 through 52 - Explicit card tokenization certification tests
   def test50
