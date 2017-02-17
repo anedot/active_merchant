@@ -671,171 +671,188 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "No transaction found with specified litleTxnId", response.params["message"]
   end
 
-  # Explicit Token Registration Tests
+  ### Order Ids 50 through 52 - Explicit card tokenization certification tests
   def test50
-    credit_card = CreditCard.new(:number => '4457119922390123')
-    options     = {
-        :order_id => '50'
+    credit_card = CreditCard.new(number: "4457119922390123")
+
+    options = {
+      order_id: "50"
     }
 
-    # store
+    # registerTokenRequest
     store_response = @gateway.store(credit_card, options)
 
-    assert_success store_response
-    assert_equal 'Account number was successfully registered', store_response.message
-    assert_equal '445711', store_response.params['litleOnlineResponse']['registerTokenResponse']['bin']
-    assert_equal 'VI', store_response.params['litleOnlineResponse']['registerTokenResponse']['type'] #type is on Object in 1.8.7 - later versions can use .registerTokenResponse.type
-    assert_equal '801', store_response.params['litleOnlineResponse']['registerTokenResponse']['response']
-    assert_equal '0123', store_response.params['litleOnlineResponse']['registerTokenResponse']['litleToken'][-4,4]
+    assert_equal "0123", store_response.params["litleToken"][-4,4]
+    assert_equal "445711", store_response.params["bin"]
+    assert_equal "VI", store_response.params["type"]
+
+    # Note: These assertions do not pass after the first time this test is run
+    assert_equal "801", store_response.params["response"]
+    assert_equal "Account number was successfully registered", store_response.message
   end
 
   def test51
-    credit_card = CreditCard.new(:number => '4457119999999999')
-    options     = {
-        :order_id => '51'
+    credit_card = CreditCard.new(number: "4457119999999999")
+
+    options = {
+      order_id: "51"
     }
 
-    # store
+    # registerTokenRequest
     store_response = @gateway.store(credit_card, options)
 
-    assert_failure store_response
-    assert_equal 'Credit card number was invalid', store_response.message
-    assert_equal '820', store_response.params['litleOnlineResponse']['registerTokenResponse']['response']
-    assert_equal nil, store_response.params['litleOnlineResponse']['registerTokenResponse']['litleToken']
+    assert_equal nil, store_response.params["tokenResponse_litleToken"]
+    assert_equal "820", store_response.params["response"]
+    assert_equal "Credit card number was invalid", store_response.message
   end
 
   def test52
-    credit_card = CreditCard.new(:number => '4457119922390123')
-    options     = {
-        :order_id => '52'
+    credit_card = CreditCard.new(number: "4457119922390123")
+
+    options = {
+      order_id: "52"
     }
 
-    # store
+    # registerTokenRequest
     store_response = @gateway.store(credit_card, options)
 
-    assert_success store_response
-    assert_equal 'Account number was previously registered', store_response.message
-    assert_equal '445711', store_response.params['litleOnlineResponse']['registerTokenResponse']['bin']
-    assert_equal 'VI', store_response.params['litleOnlineResponse']['registerTokenResponse']['type'] #type is on Object in 1.8.7 - later versions can use .registerTokenResponse.type
-    assert_equal '802', store_response.params['litleOnlineResponse']['registerTokenResponse']['response']
-    assert_equal '0123', store_response.params['litleOnlineResponse']['registerTokenResponse']['litleToken'][-4,4]
+    assert_equal "0123", store_response.params["litleToken"][-4,4]
+    assert_equal "445711", store_response.params["bin"]
+    assert_equal "VI", store_response.params["type"]
+    assert_equal "802", store_response.params["response"]
+    assert_equal "Account number was previously registered", store_response.message
   end
 
-  # Implicit Token Registration Tests
+  ### Order Ids 53 through 54 - Explicit eCheck tokenization certification tests
+  ## Not Implemented
+
+  ### Order Ids 55 through 57 - Implicit card tokenization certification tests
   def test55
-    credit_card = CreditCard.new(:number             => '5435101234510196',
-                                 :month              => '11',
-                                 :year               => '2014',
-                                 :brand              => 'master',
-                                 :verification_value => '987')
-    options     = {
-        :order_id => '55'
+    credit_card = CreditCard.new(
+      brand: "master",
+      month: "11",
+      number: "5435101234510196",
+      verification_value: "987",
+      year: "2021"
+    )
+
+    options = {
+        order_id: "55"
     }
 
-    # authorize
-    assert response = @gateway.authorize(15000, credit_card, options)
-    #"tokenResponse" => { "litleToken"        => "1712000118270196",
-    #                     "tokenResponseCode" => "802",
-    #                     "tokenMessage"      => "Account number was previously registered",
-    #                     "type"              => "MC",
-    #                     "bin"               => "543510" }
-    assert_success response
-    assert_equal 'Approved', response.message
-    assert_equal '0196', response.params['litleOnlineResponse']['authorizationResponse']['tokenResponse']['litleToken'][-4,4]
-    assert %w(801 802).include? response.params['litleOnlineResponse']['authorizationResponse']['tokenResponse']['tokenResponseCode']
-    assert_equal 'MC', response.params['litleOnlineResponse']['authorizationResponse']['tokenResponse']['type']
-    assert_equal '543510', response.params['litleOnlineResponse']['authorizationResponse']['tokenResponse']['bin']
+    # Token is implicitly registered during authorization request
+    response = @gateway.authorize(15000, credit_card, options)
+
+    assert_equal "000", response.params["response"]
+    assert_equal "Approved", response.message
+    assert_equal "0196", response.params["tokenResponse_litleToken"][-4,4]
+    assert_equal "MC", response.params["tokenResponse_type"]
+    assert_equal "543510", response.params["tokenResponse_bin"]
+    # Note: These assertions do not pass after the first time this test is run
+    assert_equal "801", response.params["tokenResponse_tokenResponseCode"]
+    assert_equal "Account number was successfully registered", response.message
   end
 
   def test56
-    credit_card = CreditCard.new(:number             => '5435109999999999',
-                                 :month              => '11',
-                                 :year               => '2014',
-                                 :brand              => 'master',
-                                 :verification_value => '987')
-    options     = {
-        :order_id => '56'
+    credit_card = CreditCard.new(
+      brand: "master",
+      month: "11",
+      number: "5435109999999999",
+      verification_value: "987",
+      year: "2021"
+    )
+
+    options = {
+      order_id: "56"
     }
 
-    # authorize
+    # Token is implicitly registered during authorization request
     assert response = @gateway.authorize(15000, credit_card, options)
 
-    assert_failure response
-    assert_equal '301', response.params['litleOnlineResponse']['authorizationResponse']['response']
+    assert_equal "301", response.params["response"]
+    assert_equal "Invalid Account Number", response.message
   end
 
-  def test57_58
-    credit_card = CreditCard.new(:number             => '5435101234510196',
-                                 :month              => '11',
-                                 :year               => '2014',
-                                 :brand              => 'master',
-                                 :verification_value => '987')
-    options     = {
-        :order_id => '57'
-    }
+  ### Order Ids 58 through 60 - Authorization with token certification tests
+  # The documentation says that Test 58 should use the token from Test 57
+  def test57_and_58
+    credit_card = CreditCard.new(
+      brand: "master",
+      month: "11",
+      number: "5435101234510196",
+      verification_value: "987",
+      year: "2021"
+    )
 
-    # authorize card
-    assert response = @gateway.authorize(15000, credit_card, options)
-
-    assert_success response
-    assert_equal 'Approved', response.message
-    assert_equal '0196', response.params['litleOnlineResponse']['authorizationResponse']['tokenResponse']['litleToken'][-4,4]
-    assert %w(801 802).include? response.params['litleOnlineResponse']['authorizationResponse']['tokenResponse']['tokenResponseCode']
-    assert_equal 'MC', response.params['litleOnlineResponse']['authorizationResponse']['tokenResponse']['type']
-    assert_equal '543510', response.params['litleOnlineResponse']['authorizationResponse']['tokenResponse']['bin']
-
-    # authorize token
-    token   = response.params['litleOnlineResponse']['authorizationResponse']['tokenResponse']['litleToken']
     options = {
-        :order_id => '58',
-        :token    => {
-            :month => credit_card.month,
-            :year  => credit_card.year
-        }
+      order_id: "57"
     }
 
-    # authorize
-    assert response = @gateway.authorize(15000, token, options)
+    # Token is implicitly registered during authorization request
+    response = @gateway.authorize(15000, credit_card, options)
 
-    assert_success response
-    assert_equal 'Approved', response.message
+    assert_equal "000", response.params["response"]
+    assert_equal "0196", response.params["tokenResponse_litleToken"][-4,4]
+    assert_equal "Approved", response.message
+    assert_equal "802", response.params["tokenResponse_tokenResponseCode"]
+    assert_equal "Account number was previously registered", response.params["tokenResponse_tokenMessage"]
+    assert_equal "MC", response.params["tokenResponse_type"]
+    assert_equal "543510", response.params["tokenResponse_bin"]
+
+    token = VantivGateway::Token.new(
+      response.params["tokenResponse_litleToken"],
+      month: credit_card.month,
+      verification_value: credit_card.verification_value,
+      year: credit_card.year
+    )
+
+    options = {
+      order_id: "58"
+    }
+
+    # Authorize with the implicity registered token from test 57
+    response = @gateway.authorize(15000, token, options)
+
+    assert_equal "000", response.params["response"]
+    assert_equal "Approved", response.message
   end
 
   def test59
-    token   = '1712990000040196'
+    token = ActiveMerchant::Billing::VantivGateway::Token.new(
+      "1111000100092332",
+      month: "11",
+      year: "2021"
+    )
+
     options = {
-        :order_id => '59',
-        :token    => {
-            :month => '11',
-            :year  => '2014'
-        }
+      order_id: "59",
     }
 
-    # authorize
-    assert response = @gateway.authorize(15000, token, options)
+    response = @gateway.authorize(15000, token, options)
 
-    assert_failure response
-    assert_equal '822', response.params['litleOnlineResponse']['authorizationResponse']['response']
-    assert_equal 'Token was not found', response.message
+    assert_equal "822", response.params["response"]
+    assert_equal "Token was not found", response.message
   end
 
   def test60
-    token   = '171299999999999'
+    token = ActiveMerchant::Billing::VantivGateway::Token.new(
+      "1112000100000085",
+      month: "11",
+      year: "2021"
+    )
+
     options = {
-        :order_id => '60',
-        :token    => {
-            :month => '11',
-            :year  => '2014'
-        }
+      order_id: "60"
     }
 
-    # authorize
-    assert response = @gateway.authorize(15000, token, options)
+    response = @gateway.authorize(15000, token, options)
 
-    assert_failure response
-    assert_equal '823', response.params['litleOnlineResponse']['authorizationResponse']['response']
-    assert_equal 'Token was invalid', response.message
+    assert_equal "823", response.params["response"]
+    assert_equal "Token was invalid", response.message
   end
+
+  ### Order Ids 61 through 64 - Implicit eCheck tokenization certification tests
+  ## Not Implemented
 
   def test_authorize_and_purchase_and_credit_with_token
     options = {
