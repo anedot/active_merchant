@@ -1,6 +1,8 @@
 require 'test_helper'
 
 class RemoteVantivCertification < Test::Unit::TestCase
+  TXN_PROCESSING_TIME = 5 # seconds
+
   def setup
     Base.mode = :test
     @gateway = VantivGateway.new(fixtures(:vantiv).merge(:url => "https://transact-prelive.litle.com/vap/communicator/online"))
@@ -287,45 +289,200 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "I", response.avs_result["code"]
   end
 
-  # Authorization Reversal Tests
-  def test34
-    credit_card = CreditCard.new(:number => '6011010000000003', :month => '03',
-                                 :year => '2021', :brand => 'discover',
-                                 :verification_value => '758')
+  ### Order Ids 32 through 36 - Authorization Reversal certification tests
+  def test32
+    credit_card = CreditCard.new(
+      brand: "visa",
+      month: "01",
+      number: "4457010000000009",
+      verification_value: "349",
+      year: "2021"
+    )
 
     options = {
-        :order_id => '34',
-        :billing_address => {
-            :name => 'Eileen Jones',
-            :address1 => '3 Main St.',
-            :city => 'Bloomfield',
-            :state => 'CT',
-            :zip => '06002',
-            :country => 'US'
-        }
+      order_id: "32",
+      billing_address: {
+        address1: "1 Main St.",
+        city: "Burlington",
+        country: "US",
+        name: "John Smith",
+        state: "MA",
+        zip: "01803-3747"
+      }
     }
 
-    assert auth_response = @gateway.authorize(30030, credit_card, options)
-    assert_success auth_response
+    # 32: Authorization
+    auth_response = @gateway.authorize(10010, credit_card, options)
 
-    assert reversal_response = @gateway.void(auth_response.authorization)
-    assert_success reversal_response
+    assert_equal "000", auth_response.params["response"]
+    assert_equal "Approved", auth_response.message
+    assert_equal "X", auth_response.avs_result["code"]
+    assert_equal "M", auth_response.cvv_result["code"]
+    assert_equal "11111", auth_response.params["authCode"].strip
+
+    # 32A: Capture
+    capture_response = @gateway.capture(5050, auth_response.authorization)
+
+    assert_equal "000", capture_response.params["response"]
+    assert_equal "Approved", capture_response.message
+
+    # 32B fails intermittently if capture does not have enough time to process
+    sleep(TXN_PROCESSING_TIME)
+
+    # 32B: Authorization Reversal
+    reversal_response = @gateway.void(auth_response.authorization)
+
+    assert_equal "111", reversal_response.params["response"]
+    assert_equal "Authorization amount has already been depleted", reversal_response.message
+  end
+
+  def test33
+    credit_card = NetworkTokenizationCreditCard.new(
+      brand: "master",
+      name: "Mike J. Hammer",
+      month: "02",
+      number: "5112010000000003",
+      payment_cryptogram: "BwABBJQ1AgAAA AAgJDUCAAAAAA A=",
+      verification_value: "261",
+      year: "2021"
+    )
+
+    options = {
+      billing_address: {
+        address1: "2 Main St.",
+        address2: "Apt. 222",
+        city: "Riverside",
+        country: "US",
+        state: "RI",
+        zip: "02915"
+      },
+      order_id: "33"
+    }
+
+    # 33: Authorization
+    auth_response = @gateway.authorize(20020, credit_card, options)
+
+    assert_equal "000", auth_response.params["response"]
+    assert_equal "Approved", auth_response.message
+    assert_equal "22222", auth_response.params["authCode"].strip
+    assert_equal "Z", auth_response.avs_result["code"]
+    assert_equal "M", auth_response.cvv_result["code"]
+
+    # 33A: Authorization Reversal
+    reversal_response = @gateway.void(auth_response.authorization)
+
+    assert_equal "000", reversal_response.params["response"]
+    assert_equal "Approved", reversal_response.message
+  end
+
+  def test34
+    credit_card = CreditCard.new(
+      brand: "discover",
+      month: "03",
+      number: "6011010000000003",
+      verification_value: "758",
+      year: "2021"
+    )
+
+    options = {
+        billing_address: {
+          address1: "3 Main St.",
+          city: "Bloomfield",
+          country: "US",
+          name: "Eileen Jones",
+          state: "CT",
+          zip: "06002"
+        },
+        order_id: "34"
+    }
+
+    # 34: Authorization
+    auth_response = @gateway.authorize(30030, credit_card, options)
+
+    assert_equal "000", auth_response.params["response"]
+    assert_equal "Approved", auth_response.message
+    assert_equal "33333", auth_response.params["authCode"].strip
+    assert_equal "Z", auth_response.avs_result["code"]
+    assert_equal "M", auth_response.cvv_result["code"]
+
+    # 34A: Authorization Reversal
+    reversal_response = @gateway.void(auth_response.authorization)
+
+    assert_equal "000", reversal_response.params["response"]
+    assert_equal "Approved", reversal_response.message
+  end
+
+  def test35
+    credit_card = CreditCard.new(
+      brand: "american_express",
+      month: "04",
+      name: "Bob Black",
+      number: "375001000000005",
+      year: "2021"
+    )
+
+    options = {
+      billing_address: {
+        address1: "4 Main St.",
+        city: "Laurel",
+        country: "US",
+        state: "MD",
+        zip: "20708"
+      },
+      order_id: "35"
+    }
+
+    # 35: Authorization
+    auth_response = @gateway.authorize(10100, credit_card, options)
+
+    assert_equal "000", auth_response.params["response"]
+    assert_equal "Approved", auth_response.message
+    assert_equal "44444", auth_response.params["authCode"].strip
+    assert_equal "A", auth_response.avs_result["code"]
+
+    # 35A: Capture
+    capture_response = @gateway.capture(5050, auth_response.authorization)
+
+    assert_equal "000", capture_response.params["response"]
+    assert_equal "Approved", capture_response.message
+
+    # 35B fails intermittently if capture does not have enough time to process
+    sleep(TXN_PROCESSING_TIME)
+
+    # 35B: Authorization Reversal
+    reversal_options = {
+      amount: 5050
+    }
+
+    reversal_response = @gateway.void(auth_response.authorization, reversal_options)
+
+    assert_equal "336", reversal_response.params["response"]
+    assert_equal "Reversal amount does not match authorization amount", reversal_response.message
   end
 
   def test36
+    credit_card = CreditCard.new(
+      brand: "american_express",
+      month: "05",
+      number: "375000026600004",
+      year: "2021"
+    )
+
     options = {
-        :order_id => '36'
+      order_id: "36"
     }
 
-    credit_card = CreditCard.new(:number => '375000026600004', :month => '05',
-                                 :year => '2021', :brand => 'american_express')
+    # 36: Authorization
+    auth_response = @gateway.authorize(20500, credit_card, options)
 
-    assert auth_response = @gateway.authorize(20500, credit_card, options)
-    assert_success auth_response
+    assert_equal "000", auth_response.params["response"]
+    assert_equal "Approved", auth_response.message
 
-    assert reversal_response = @gateway.void(auth_response.authorization, amount: 10000)
-    assert !reversal_response.success?
-    assert_equal '336', reversal_response.params['response']
+    # 36A: Authorization Reversal
+    reversal_response = @gateway.void(auth_response.authorization, amount: 10000)
+
+    assert_equal "336", reversal_response.params["response"]
+    assert_equal "Reversal amount does not match authorization amount", auth_response.message
   end
 
   def test37
