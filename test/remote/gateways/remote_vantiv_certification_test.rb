@@ -8,6 +8,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     @gateway = VantivGateway.new(fixtures(:vantiv).merge(:url => "https://prelive.litle.com/vap/communicator/online"))
   end
 
+  ### Order Ids 1 through 9 - Authorization certification tests
   def test1
     credit_card = CreditCard.new(
       :number => '4457010000000009',
@@ -289,6 +290,24 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "I", response.avs_result["code"]
   end
 
+  ### Order Ids 10 through 13 - Partial Authorization certification tests
+  ## Not Implemented - Required if you plan to use Partial Authorizations
+
+  ### Order Ids 14 through 20 - Prepaid Indicator certification tests
+  ## Not Implemented - Required if you plan to receive Prepaid Indicators
+
+  ### Order Ids 21 through 24 - Affluence Indicators certification tests
+  ## Not Implemented - Required if you plan to receive Affluence Indicators
+
+  ### Order Id 25 - Issuer Country certification test
+  ## Not Implemented - Required if you plan to receive Issuer Country info
+
+  ### Order Ids 26 through 31 - Healthcare Card (IIAS) certification tests
+  ## Not Implemented - Required if you plan to use Healthcare (IIAS) cards
+
+  ### Authorization Recycling Advice certification tests
+  ## Not Implemented - Required if you plan to receive Auth Recycling Advice
+
   ### Order Ids 32 through 36 - Authorization Reversal certification tests
   def test32
     credit_card = CreditCard.new(
@@ -485,9 +504,13 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "Reversal amount does not match authorization amount", auth_response.message
   end
 
-  ### Order Ids 37 through 40 - include if you plan to use eCheck Verification
-  ## Not Implemented
+  ### Order Ids 37 through 40 - eCheck Verification certification tests
+  ## Not Implemented - Required if you plan to use eCheck Verification
 
+  ### eCheck Prenotification certification tests
+  ## Not Implemented - Required if you plan to use eCheck Prenotification
+
+  ### Order Ids 41 through 44 - eCheck Sale certification tests
   def test41
     check = Check.new(
       account_holder_type: "personal",
@@ -588,6 +611,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "Invalid Bank Routing Number", response.params["message"]
   end
 
+  ### Order Ids 45 through 49 - eCheck Credit certification tests
   def test45
     check = Check.new(
       account_holder_type: "personal",
@@ -671,6 +695,9 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "No transaction found with specified litleTxnId", response.params["message"]
   end
 
+  ### eCheck Void certification tests
+  ## Not Implemented - Required for all eCheck users
+
   ### Order Ids 50 through 52 - Explicit card tokenization certification tests
   def test50
     credit_card = CreditCard.new(number: "4457119922390123")
@@ -724,7 +751,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
   end
 
   ### Order Ids 53 through 54 - Explicit eCheck tokenization certification tests
-  ## Not Implemented
+  ## Not Implemented - Required for eCheck token users
 
   ### Order Ids 55 through 57 - Implicit card tokenization certification tests
   def test55
@@ -852,7 +879,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
   end
 
   ### Order Ids 61 through 64 - Implicit eCheck tokenization certification tests
-  ## Not Implemented
+  ## Not Implemented - Required for eCheck token users
 
   ### Order Ids after 64 are optional tests after completing certification
   ## Functionality covered in those tests may or may not be implemented
