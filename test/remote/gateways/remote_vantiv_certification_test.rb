@@ -130,7 +130,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_id: "5"
     }
 
-    auth_assertions(10100, credit_card, options, avs: "U", cvv: "M")
+    auth_assertions(10100, credit_card, options, avs: "U", cvv: "M", auth_code: "55555")
 
     # 5: authorize avs
     authorize_avs_assertions(credit_card, options, avs: "U", cvv: "M")
@@ -834,9 +834,11 @@ class RemoteVantivCertification < Test::Unit::TestCase
     # 1: authorize
     assert response = @gateway.authorize(amount, card, options)
     assert_success response
+    assert_equal "000", response.params["response"]
     assert_equal 'Approved', response.message
     assert_equal assertions[:avs], response.avs_result["code"]
     assert_equal assertions[:cvv], response.cvv_result["code"] if assertions[:cvv]
+    assert_equal assertions[:auth_code], response.params["authCode"].strip if assertions[:auth_code]
     assert_equal options[:order_id], response.params['orderId']
 
     # 1A: capture
