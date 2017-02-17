@@ -854,62 +854,8 @@ class RemoteVantivCertification < Test::Unit::TestCase
   ### Order Ids 61 through 64 - Implicit eCheck tokenization certification tests
   ## Not Implemented
 
-  def test_authorize_and_purchase_and_credit_with_token
-    options = {
-        :order_id => transaction_id,
-        :billing_address => {
-            :name => 'John Smith',
-            :address1 => '1 Main St.',
-            :city => 'Burlington',
-            :state => 'MA',
-            :zip => '01803-3747',
-            :country => 'US'
-        }
-    }
-
-    credit_card = CreditCard.new(:number             => '5435101234510196',
-                                 :month              => '11',
-                                 :year               => '2014',
-                                 :brand              => 'master',
-                                 :verification_value => '987')
-
-    # authorize
-    assert auth_response = @gateway.authorize(0, credit_card, options)
-
-    assert_success auth_response
-    assert_equal 'Approved', auth_response.message
-    token = auth_response.params['litleOnlineResponse']['authorizationResponse']['tokenResponse']['litleToken']
-    assert_equal '0196', token[-4, 4]
-    assert %w(801 802).include? auth_response.params['litleOnlineResponse']['authorizationResponse']['tokenResponse']['tokenResponseCode']
-
-    # purchase
-    purchase_options = options.merge({
-                                         :order_id => transaction_id,
-                                         :token    => {
-                                             :month => credit_card.month,
-                                             :year  => credit_card.year
-                                         }
-                                     })
-
-    assert purchase_response = @gateway.purchase(100, token, purchase_options)
-    assert_success purchase_response
-    assert_equal 'Approved', purchase_response.message
-    assert_equal purchase_options[:order_id], purchase_response.params['litleOnlineResponse']['saleResponse']['id']
-
-    # credit
-    credit_options = options.merge({
-                                       :order_id => transaction_id,
-                                       :token    => {
-                                           :month => credit_card.month,
-                                           :year  => credit_card.year
-                                       }
-                                   })
-
-    assert credit_response = @gateway.credit(500, token, credit_options)
-    assert_success credit_response
-    assert_equal 'Approved', credit_response.message
-    assert_equal credit_options[:order_id], credit_response.params['litleOnlineResponse']['creditResponse']['id']
-  end
+  ### Order Ids after 64 are optional tests after completing certification
+  ## Functionality covered in those tests may or may not be implemented
 
   private
 
