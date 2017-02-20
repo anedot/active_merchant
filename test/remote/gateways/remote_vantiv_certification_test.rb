@@ -30,12 +30,22 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_id: "1"
     }
 
-    auth_assertions(10010, credit_card, options, avs: "X", cvv: "M")
+    assertions = {
+      auth_code: "11111",
+      avs: "X",
+      cvv: "M",
+      message: "Approved",
+      response: "000"
+    }
 
-    # 1: authorize avs
-    authorize_avs_assertions(credit_card, options, avs: "X", cvv: "M")
+    # 1: Authorization, 1A: Capture, 1B: Credit, 1C: Void
+    auth_assertions(10010, credit_card, options, assertions)
 
-    sale_assertions(10010, credit_card, options, avs: "X", cvv: "M")
+    # 1: Sale
+    sale_assertions(10010, credit_card, options, assertions)
+
+    # 1: AVS
+    avs_assertions(credit_card, options, assertions)
   end
 
   def test2
@@ -59,12 +69,22 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_id: "2"
     }
 
-    auth_assertions(20020, credit_card, options, avs: "Z", cvv: "M")
+    assertions = {
+      auth_code: "22222",
+      avs: "Z",
+      cvv: "M",
+      message: "Approved",
+      response: "000"
+    }
 
-    # 2: authorize avs
-    authorize_avs_assertions(credit_card, options, avs: "Z", cvv: "M")
+    # 2: Authorization, 2A: Capture, 2B: Credit, 2C: Void
+    auth_assertions(20020, credit_card, options, assertions)
 
-    sale_assertions(20020, credit_card, options, avs: "Z", cvv: "M")
+    # 2: Sale
+    sale_assertions(20020, credit_card, options, assertions)
+
+    # 2: AVS
+    avs_assertions(credit_card, options, assertions)
   end
 
   def test3
@@ -88,12 +108,22 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_id: "3"
     }
 
-    auth_assertions(30030, credit_card, options, avs: "Z", cvv: "M")
+    assertions = {
+      auth_code: "33333",
+      avs: "Z",
+      cvv: "M",
+      message: "Approved",
+      response: "000"
+    }
 
-    # 3: authorize avs
-    authorize_avs_assertions(credit_card, options, avs: "Z", cvv: "M")
+    # 3: Authorization, 3A: Capture, 3B: Credit, 3C: Void
+    auth_assertions(30030, credit_card, options, assertions)
 
-    sale_assertions(30030, credit_card, options, avs: "Z", cvv: "M")
+    # 3: Sale
+    sale_assertions(30030, credit_card, options, assertions)
+
+    # 3: AVS
+    avs_assertions(credit_card, options, assertions)
   end
 
   def test4
@@ -116,12 +146,21 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_id: "4"
     }
 
-    auth_assertions(40040, credit_card, options, avs: "A", cvv: nil)
+    assertions = {
+      auth_code: "44444",
+      avs: "A",
+      message: "Approved",
+      response: "000"
+    }
 
-    # 4: authorize avs
-    authorize_avs_assertions(credit_card, options, avs: "A")
+    # 4: Authorization, 4A: Capture, 4B: Credit, 4C: Void
+    auth_assertions(40040, credit_card, options, assertions)
 
-    sale_assertions(40040, credit_card, options, avs: "A", cvv: nil)
+    # 4: Sale
+    sale_assertions(40040, credit_card, options, assertions)
+
+    # 4: AVS
+    avs_assertions(credit_card, options, assertions)
   end
 
   def test5
@@ -138,12 +177,22 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_id: "5"
     }
 
-    auth_assertions(10100, credit_card, options, avs: "U", cvv: "M", auth_code: "55555")
+    assertions = {
+      auth_code: "55555",
+      avs: "U",
+      cvv: "M",
+      message: "Approved",
+      response: "000"
+    }
 
-    # 5: authorize avs
-    authorize_avs_assertions(credit_card, options, avs: "U", cvv: "M")
+    # 5: Authorization, 5A: Capture, 5B: Credit, 5C: Void
+    auth_assertions(50050, credit_card, options, assertions)
 
-    sale_assertions(10100, credit_card, options, avs: "U", cvv: "M")
+    # 5: Sale
+    sale_assertions(10100, credit_card, options, assertions)
+
+    # 5: AVS
+    avs_assertions(credit_card, options, assertions)
   end
 
   def test6
@@ -167,7 +216,14 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_id: "6"
     }
 
-    # 6: authorize
+    assertions = {
+      avs: "I",
+      cvv: "P",
+      message: "Insufficient Funds",
+      response: "110"
+    }
+
+    # 6: Authorization
     response = @gateway.authorize(60060, credit_card, options)
 
     assert_equal "110", response.params["response"]
@@ -175,15 +231,10 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "I", response.avs_result["code"]
     assert_equal "P", response.cvv_result["code"]
 
-    # 6. sale
-    response = @gateway.purchase(60060, credit_card, options)
+    # 6: Sale
+    sale_assertions(60060, credit_card, options, assertions)
 
-    assert_equal "110", response.params["response"]
-    assert_equal "Insufficient Funds", response.message
-    assert_equal "I", response.avs_result["code"]
-    assert_equal "P", response.cvv_result["code"]
-
-    # 6A. void
+    # 6A: Void
     response = @gateway.void(response.authorization, {order_id: "6A"})
 
     assert_equal "360", response.params["response"]
@@ -211,7 +262,14 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_id: "7"
     }
 
-    # 7: authorize
+    assertions = {
+      avs: "I",
+      cvv: "N",
+      message: "Invalid Account Number",
+      response: "301"
+    }
+
+    # 7: Authorization
     response = @gateway.authorize(70070, credit_card, options)
 
     assert_equal "301", response.params["response"]
@@ -219,16 +277,11 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "I", response.avs_result["code"]
     assert_equal "N", response.cvv_result["code"]
 
-    # 7: authorize avs
-    authorize_avs_assertions(credit_card, options, avs: "I", cvv: "N", message: "Invalid Account Number")
+    # 7: Sale
+    sale_assertions(70070, credit_card, options, assertions)
 
-    # 7. sale
-    response = @gateway.purchase(70070, credit_card, options)
-
-    assert_equal "301", response.params["response"]
-    assert_equal "Invalid Account Number", response.message
-    assert_equal "I", response.avs_result["code"]
-    assert_equal "N", response.cvv_result["code"]
+    # 7: AVS
+    avs_assertions(credit_card, options, assertions)
   end
 
   def test8
@@ -252,7 +305,14 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_id: "8"
     }
 
-    # 8: authorize
+    assertions = {
+      avs: "I",
+      cvv: "P",
+      message: "Call Discover",
+      response: "123"
+    }
+
+    # 8: Authorization
     response = @gateway.authorize(80080, credit_card, options)
 
     assert_equal "123", response.params["response"]
@@ -260,16 +320,11 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "I", response.avs_result["code"]
     assert_equal "P", response.cvv_result["code"]
 
-    # 8: authorize avs
-    authorize_avs_assertions(credit_card, options, avs: "I", cvv: "P", message: "Call Discover")
+    # 8: Sale
+    sale_assertions(80080, credit_card, options, assertions)
 
-    # 8: sale
-    response = @gateway.purchase(80080, credit_card, options)
-
-    assert_equal "123", response.params["response"]
-    assert_equal "Call Discover", response.message
-    assert_equal "I", response.avs_result["code"]
-    assert_equal "P", response.cvv_result["code"]
+    # 8: AVS
+    avs_assertions(credit_card, options, assertions)
   end
 
   def test9
@@ -293,22 +348,25 @@ class RemoteVantivCertification < Test::Unit::TestCase
       order_id: "9"
     }
 
-    # 9: authorize
+    assertions = {
+      avs: "I",
+      cvv: "P",
+      message: "Pick Up Card",
+      response: "303"
+    }
+
+    # 9: Authorization
     response = @gateway.authorize(90090, credit_card, options)
 
     assert_equal "303", response.params["response"]
     assert_equal "Pick Up Card", response.message
     assert_equal "I", response.avs_result["code"]
 
-    # 9: authorize avs
-    authorize_avs_assertions(credit_card, options, avs: "I", message: "Pick Up Card")
+    # 9: Sale
+    sale_assertions(90090, credit_card, options, assertions)
 
-    # 9: sale
-    response = @gateway.purchase(90090, credit_card, options)
-
-    assert_equal "303", response.params["response"]
-    assert_equal "Pick Up Card", response.message
-    assert_equal "I", response.avs_result["code"]
+    # 9: AVS
+    avs_assertions(credit_card, options, assertions)
   end
 
   ### Order Ids 10 through 13 - Partial Authorization certification tests
@@ -938,71 +996,55 @@ class RemoteVantivCertification < Test::Unit::TestCase
 
   private
 
+  # Shared assertions for the authorization tests of Order Ids 1 through 5
   def auth_assertions(amount, card, options, assertions)
-    # 1: authorize
+    # Authorize
     response = @gateway.authorize(amount, card, options)
 
     assert_equal "000", response.params["response"]
     assert_equal "Approved", response.message
+    assert_equal assertions[:auth_code], response.params["authCode"].strip
     assert_equal assertions[:avs], response.avs_result["code"]
     assert_equal assertions[:cvv], response.cvv_result["code"] if assertions[:cvv]
-    assert_equal assertions[:auth_code], response.params["authCode"].strip if assertions[:auth_code]
 
-    # 1A: capture
-    id = transaction_id
-    response = @gateway.capture(amount, response.authorization, {id: id})
+    # A: Capture
+    response = @gateway.capture(amount, response.authorization)
 
+    assert_equal "000", response.params["response"]
     assert_equal "Approved", response.message
 
-    # 1B: credit
-    id = transaction_id
-    response = @gateway.refund(amount, response.authorization, {id: id})
+    # B: Credit
+    response = @gateway.refund(amount, response.authorization)
 
+    assert_equal "000", response.params["response"]
     assert_equal "Approved", response.message
 
-    # 1C: void
-    id = transaction_id
-    response = @gateway.void(response.authorization, {id: id})
+    # C: Void
+    response = @gateway.void(response.authorization)
 
+    assert_equal "000", response.params["response"]
     assert_equal "Approved", response.message
   end
 
-  def authorize_avs_assertions(credit_card, options, assertions={})
+  # Shared assertions for the AVS only tests of Order Ids 1 through 5, 7, 8, 9
+  def avs_assertions(credit_card, options, assertions)
     response = @gateway.authorize(0, credit_card, options)
 
-    assert_equal assertions[:message] || "Approved", response.message
-    assert_equal assertions[:avs], response.avs_result["code"], caller.inspect
-    assert_equal assertions[:cvv], response.cvv_result["code"], caller.inspect if assertions[:cvv]
-  end
-
-  def sale_assertions(amount, card, options, assertions)
-    # 1: sale
-    response = @gateway.purchase(amount, card, options)
-
-    assert_equal "Approved", response.message
+    assert_equal assertions[:response], response.params["response"]
+    assert_equal assertions[:message], response.message
+    assert_equal assertions[:auth_code], response.params["authCode"].strip if assertions[:auth_code]
     assert_equal assertions[:avs], response.avs_result["code"]
     assert_equal assertions[:cvv], response.cvv_result["code"] if assertions[:cvv]
-
-    # 1B: credit
-    id = transaction_id
-    response = @gateway.refund(amount, response.authorization, {id: id})
-
-    assert_equal "Approved", response.message
-
-    # 1C: void
-    id = transaction_id
-    response = @gateway.void(response.authorization, {id: id})
-
-    assert_equal "Approved", response.message
   end
 
-  def transaction_id
-    # A unique identifier assigned by the presenter and mirrored back in the response.
-    # This attribute is also used for Duplicate Transaction Detection.
-    # For Online transactions, omitting this attribute, or setting it to a
-    # null value (id=""), disables Duplicate Detection for the transaction.
-    #
-    # minLength = N/A   maxLength = 25
-    generate_unique_id[0, 24]
+  # Shared assertions for the sale tests of Order Ids 1 through 9
+  def sale_assertions(amount, card, options, assertions)
+    response = @gateway.purchase(amount, card, options)
+
+    assert_equal assertions[:response], response.params["response"]
+    assert_equal assertions[:message], response.message
+    assert_equal assertions[:auth_code], response.params["authCode"].strip if assertions[:auth_code]
+    assert_equal assertions[:avs], response.avs_result["code"]
+    assert_equal assertions[:cvv], response.cvv_result["code"] if assertions[:cvv]
   end
 end
