@@ -49,10 +49,11 @@ class RemoteVantivCertification < Test::Unit::TestCase
   end
 
   def test2
-    credit_card = CreditCard.new(
+    credit_card = NetworkTokenizationCreditCard.new(
       brand: "master",
       month: "02",
       number: "5112010000000003",
+      payment_cryptogram: "BwABBJQ1AgAAA AAgJDUCAAAAAA A=",
       verification_value: "261",
       year: "2021"
     )
@@ -60,6 +61,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     options = {
       billing_address: {
         address1: "2 Main St.",
+        address2: "Apt. 222",
         city: "Riverside",
         country: "US",
         name: "Mike J. Hammer",
@@ -78,10 +80,10 @@ class RemoteVantivCertification < Test::Unit::TestCase
     }
 
     # 2: Authorization, 2A: Capture, 2B: Credit, 2C: Void
-    auth_assertions(20020, credit_card, options, assertions)
+    auth_assertions(10010, credit_card, options, assertions)
 
     # 2: Sale
-    sale_assertions(20020, credit_card, options, assertions)
+    sale_assertions(10010, credit_card, options, assertions)
 
     # 2: AVS
     avs_assertions(credit_card, options, assertions)
@@ -117,10 +119,10 @@ class RemoteVantivCertification < Test::Unit::TestCase
     }
 
     # 3: Authorization, 3A: Capture, 3B: Credit, 3C: Void
-    auth_assertions(30030, credit_card, options, assertions)
+    auth_assertions(10010, credit_card, options, assertions)
 
     # 3: Sale
-    sale_assertions(30030, credit_card, options, assertions)
+    sale_assertions(10010, credit_card, options, assertions)
 
     # 3: AVS
     avs_assertions(credit_card, options, assertions)
@@ -154,10 +156,10 @@ class RemoteVantivCertification < Test::Unit::TestCase
     }
 
     # 4: Authorization, 4A: Capture, 4B: Credit, 4C: Void
-    auth_assertions(40040, credit_card, options, assertions)
+    auth_assertions(10010, credit_card, options, assertions)
 
     # 4: Sale
-    sale_assertions(40040, credit_card, options, assertions)
+    sale_assertions(10010, credit_card, options, assertions)
 
     # 4: AVS
     avs_assertions(credit_card, options, assertions)
@@ -186,7 +188,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     }
 
     # 5: Authorization, 5A: Capture, 5B: Credit, 5C: Void
-    auth_assertions(50050, credit_card, options, assertions)
+    auth_assertions(10010, credit_card, options, assertions)
 
     # 5: Sale
     sale_assertions(10100, credit_card, options, assertions)
@@ -224,7 +226,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     }
 
     # 6: Authorization
-    response = @gateway.authorize(60060, credit_card, options)
+    response = @gateway.authorize(10010, credit_card, options)
 
     assert_equal "110", response.params["response"]
     assert_equal "Insufficient Funds", response.message
@@ -232,7 +234,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "P", response.cvv_result["code"]
 
     # 6: Sale
-    sale_assertions(60060, credit_card, options, assertions)
+    sale_assertions(10010, credit_card, options, assertions)
 
     # 6A: Void
     response = @gateway.void(response.authorization, {order_id: "6A"})
@@ -270,7 +272,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     }
 
     # 7: Authorization
-    response = @gateway.authorize(70070, credit_card, options)
+    response = @gateway.authorize(10010, credit_card, options)
 
     assert_equal "301", response.params["response"]
     assert_equal "Invalid Account Number", response.message
@@ -278,7 +280,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "N", response.cvv_result["code"]
 
     # 7: Sale
-    sale_assertions(70070, credit_card, options, assertions)
+    sale_assertions(10010, credit_card, options, assertions)
 
     # 7: AVS
     avs_assertions(credit_card, options, assertions)
@@ -313,7 +315,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     }
 
     # 8: Authorization
-    response = @gateway.authorize(80080, credit_card, options)
+    response = @gateway.authorize(10010, credit_card, options)
 
     assert_equal "123", response.params["response"]
     assert_equal "Call Discover", response.message
@@ -321,7 +323,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "P", response.cvv_result["code"]
 
     # 8: Sale
-    sale_assertions(80080, credit_card, options, assertions)
+    sale_assertions(10010, credit_card, options, assertions)
 
     # 8: AVS
     avs_assertions(credit_card, options, assertions)
@@ -356,14 +358,14 @@ class RemoteVantivCertification < Test::Unit::TestCase
     }
 
     # 9: Authorization
-    response = @gateway.authorize(90090, credit_card, options)
+    response = @gateway.authorize(10010, credit_card, options)
 
     assert_equal "303", response.params["response"]
     assert_equal "Pick Up Card", response.message
     assert_equal "I", response.avs_result["code"]
 
     # 9: Sale
-    sale_assertions(90090, credit_card, options, assertions)
+    sale_assertions(10010, credit_card, options, assertions)
 
     # 9: AVS
     avs_assertions(credit_card, options, assertions)
