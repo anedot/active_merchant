@@ -552,7 +552,10 @@ class RemoteVantivCertification < Test::Unit::TestCase
       amount: 5050
     }
 
-    reversal_response = @gateway.void(auth_response.authorization, reversal_options)
+    reversal_response = @gateway.void(
+      auth_response.authorization,
+      reversal_options
+    )
 
     assert_equal "336", reversal_response.params["response"]
     assert_equal "Reversal amount does not match authorization amount", reversal_response.message
@@ -577,7 +580,10 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "Approved", auth_response.message
 
     # 36A: Authorization Reversal
-    reversal_response = @gateway.void(auth_response.authorization, amount: 10000)
+    reversal_response = @gateway.void(
+      auth_response.authorization,
+      amount: 10000
+    )
 
     assert_equal "336", reversal_response.params["response"]
     assert_equal "Reversal amount does not match authorization amount", auth_response.message
@@ -1005,7 +1011,9 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "Approved", response.message
     assert_equal assertions[:auth_code], response.params["authCode"].strip
     assert_equal assertions[:avs], response.avs_result["code"]
-    assert_equal assertions[:cvv], response.cvv_result["code"] if assertions[:cvv]
+    if assertions[:cvv]
+      assert_equal assertions[:cvv], response.cvv_result["code"]
+    end
 
     # A: Capture
     response = @gateway.capture(amount, response.authorization)
@@ -1032,9 +1040,13 @@ class RemoteVantivCertification < Test::Unit::TestCase
 
     assert_equal assertions[:response], response.params["response"]
     assert_equal assertions[:message], response.message
-    assert_equal assertions[:auth_code], response.params["authCode"].strip if assertions[:auth_code]
+    if assertions[:auth_code]
+      assert_equal assertions[:auth_code], response.params["authCode"].strip
+    end
     assert_equal assertions[:avs], response.avs_result["code"]
-    assert_equal assertions[:cvv], response.cvv_result["code"] if assertions[:cvv]
+    if assertions[:cvv]
+      assert_equal assertions[:cvv], response.cvv_result["code"]
+    end
   end
 
   # Shared assertions for the sale tests of Order Ids 1 through 9
@@ -1043,8 +1055,12 @@ class RemoteVantivCertification < Test::Unit::TestCase
 
     assert_equal assertions[:response], response.params["response"]
     assert_equal assertions[:message], response.message
-    assert_equal assertions[:auth_code], response.params["authCode"].strip if assertions[:auth_code]
+    if assertions[:auth_code]
+      assert_equal assertions[:auth_code], response.params["authCode"].strip
+    end
     assert_equal assertions[:avs], response.avs_result["code"]
-    assert_equal assertions[:cvv], response.cvv_result["code"] if assertions[:cvv]
+    if assertions[:cvv]
+      assert_equal assertions[:cvv], response.cvv_result["code"]
+    end
   end
 end
