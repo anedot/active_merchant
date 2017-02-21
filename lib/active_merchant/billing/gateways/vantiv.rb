@@ -332,6 +332,7 @@ module ActiveMerchant #:nodoc:
       # Public: Submit a payment method and receive a Vantiv token in return.
       #
       # Supported payment_methods:
+      #   * `Check`
       #   * `CreditCard`
       #   * `Registration`
       #
@@ -343,6 +344,11 @@ module ActiveMerchant #:nodoc:
 
             if payment_method_is_registration?(payment_method)
               doc.paypageRegistrationId(payment_method.id)
+            elsif payment_method_is_check?(payment_method)
+              doc.echeckForToken do
+                doc.accNum(payment_method.account_number)
+                doc.routingNum(payment_method.routing_number)
+              end
             else
               doc.accountNumber(payment_method.number)
 
