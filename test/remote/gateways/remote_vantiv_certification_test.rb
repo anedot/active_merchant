@@ -868,7 +868,44 @@ class RemoteVantivCertification < Test::Unit::TestCase
   end
 
   ### Order Ids 53 through 54 - Explicit eCheck tokenization certification tests
-  ## Not Implemented - Required for eCheck token users
+  def test53
+    check = Check.new(
+      account_number: "1099999998",
+      routing_number: "011100012"
+    )
+
+    options = {
+      order_id: "53"
+    }
+
+    # registerTokenRequest with echeckForToken
+    store_response = @gateway.store(check, options)
+
+    assert_not_nil store_response.params["litleToken"]
+    assert_equal "EC", store_response.params["type"]
+    assert_equal "998", store_response.params["eCheckAccountSuffix"]
+
+    # Note: These assertions do not pass after the first time this test is run
+    assert_equal "801", store_response.params["response"]
+    assert_equal "Account number was successfully registered", store_response.message
+  end
+
+  def test54
+    check = Check.new(
+      account_number: "1022222102",
+      routing_number: "1145_7895"
+    )
+
+    options = {
+      order_id: "54"
+    }
+
+    # registerTokenRequest with echeckForToken
+    store_response = @gateway.store(check, options)
+
+    assert_equal "900", store_response.params["response"]
+    assert_equal "Invalid Bank Routing Number", store_response.message
+  end
 
   ### Order Ids 55 through 57 - Implicit card tokenization certification tests
   def test55
@@ -997,7 +1034,80 @@ class RemoteVantivCertification < Test::Unit::TestCase
   end
 
   ### Order Ids 61 through 64 - Implicit eCheck tokenization certification tests
-  ## Not Implemented - Required for eCheck token users
+  def test61
+    check = Check.new(
+      account_holder_type: "personal",
+      account_number: "1099999003",
+      account_type: "checking",
+      name: "Tom Black",
+      routing_number: "011100012"
+    )
+
+    options = {
+      order_id: "61"
+    }
+
+    # Token is implicity registered during eCheck sale
+    response = @gateway.purchase(15000, check, options)
+
+    # Note: These assertions do not pass after the first time this test is run
+    assert_not_nil response.params["tokenResponse_litleToken"]
+    assert_equal "801", response.params["tokenResponse_tokenResponseCode"]
+    assert_equal "Account number was successfully registered", response.params["tokenResponse_tokenMessage"]
+    assert_equal "EC", response.params["tokenResponse_type"]
+    assert_equal "003", response.params["tokenResponse_eCheckAccountSuffix"]
+  end
+
+  def test62
+    check = Check.new(
+      account_holder_type: "personal",
+      account_number: "1099999999",
+      account_type: "checking",
+      name: "Tom Black",
+      routing_number: "011100012"
+    )
+
+    options = {
+      order_id: "62"
+    }
+
+    # Token is implicity registered during eCheck sale
+    response = @gateway.purchase(15000, check, options)
+
+    # Note: These assertions do not pass after the first time this test is run
+    assert_not_nil response.params["tokenResponse_litleToken"]
+    assert_equal "801", response.params["tokenResponse_tokenResponseCode"]
+    assert_equal "Account number was successfully registered", response.params["tokenResponse_tokenMessage"]
+    assert_equal "EC", response.params["tokenResponse_type"]
+    assert_equal "999", response.params["tokenResponse_eCheckAccountSuffix"]
+  end
+
+  def test63
+    check = Check.new(
+      account_holder_type: "personal",
+      account_number: "1099999999",
+      account_type: "checking",
+      name: "Tom Black",
+      routing_number: "011100012"
+    )
+
+    options = {
+      order_id: "63"
+    }
+
+    # Token is implicity registered during eCheck credit
+    response = @gateway.refund(15000, check, options)
+
+    # Note: These assertions do not pass after the first time this test is run
+    assert_not_nil response.params["tokenResponse_litleToken"]
+    assert_equal "801", response.params["tokenResponse_tokenResponseCode"]
+    assert_equal "Account number was successfully registered", response.params["tokenResponse_tokenMessage"]
+    assert_equal "EC", response.params["tokenResponse_type"]
+    assert_equal "999", response.params["tokenResponse_eCheckAccountSuffix"]
+  end
+
+  ### Order Id 64
+  ## Not Implemented - Must have Account Updater Service enabled
 
   ### Order Ids after 64 are optional tests after completing certification
   ## Functionality covered in those tests may or may not be implemented
