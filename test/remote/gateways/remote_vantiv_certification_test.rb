@@ -588,7 +588,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     )
 
     assert_equal "336", reversal_response.params["response"]
-    assert_equal "Reversal amount does not match authorization amount", auth_response.message
+    assert_equal "Reversal amount does not match authorization amount", reversal_response.message
   end
 
   ### Order Ids 37 through 40 - eCheck Verification certification tests
@@ -845,7 +845,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     # registerTokenRequest
     store_response = @gateway.store(credit_card, options)
 
-    assert_equal nil, store_response.params["tokenResponse_litleToken"]
+    assert_equal nil, store_response.params["litleToken"]
     assert_equal "820", store_response.params["response"]
     assert_equal "Credit card number was invalid", store_response.message
   end
