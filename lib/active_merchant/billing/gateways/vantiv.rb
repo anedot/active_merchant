@@ -153,6 +153,22 @@ module ActiveMerchant #:nodoc:
         end
       end
 
+      # Private: Simple object to contain gateway request details
+      #
+      # The Vantiv gateway has some inconsistent transaction and response
+      # notes in the xml. This helps smooth those over and allows for
+      # a simple helper to submit the request.
+      class Request
+        attr_reader :money, :response, :txn, :xml
+
+        def initialize(money:, response:, txn:, xml:)
+          @money = money
+          @response = response
+          @txn = txn
+          @xml = xml
+        end
+      end
+
       # Public: Vantiv token object represents the tokenized credit card number
       # from Vantiv. Unlike other vault-like solutions, Vantiv only stores the
       # "account number".
@@ -185,6 +201,545 @@ module ActiveMerchant #:nodoc:
         end
       end
 
+      # Private: Helpers for creating the Request XML required by Vantiv
+      module RequestBuilderHelpers
+        # Private: Add address elements common to billing and shipping
+        def add_address(doc, address, person, options)
+          doc.name(person[:name]) unless person[:name].blank?
+          doc.firstName(person[:first_name]) unless person[:first_name].blank?
+          doc.lastName(person[:last_name]) unless person[:last_name].blank?
+          doc.addressLine1(address[:address1]) unless address[:address1].blank?
+          doc.addressLine2(address[:address2]) unless address[:address2].blank?
+          doc.city(address[:city]) unless address[:city].blank?
+          doc.state(address[:state]) unless address[:state].blank?
+          doc.zip(address[:zip]) unless address[:zip].blank?
+          doc.country(address[:country]) unless address[:country].blank?
+          doc.email(options[:email]) unless options[:email].blank?
+          doc.phone(address[:phone]) unless address[:phone].blank?
+        end
+
+        # Private: Add billing address information
+        #
+        # The `billToAddress` element is always added
+        def add_billing_address(doc, payment_method, options)
+          address = options[:billing_address] || {}
+          person = address_person(payment_method, address)
+
+          doc.billToAddress do
+            add_address(doc, address, person, options)
+            doc.companyName(address[:company]) unless address[:company].blank?
+          end
+        end
+
+        # Private: Add the custom billing descriptor
+        def add_descriptor(doc, options)
+          name = options[:descriptor_name]
+          phone = options[:descriptor_phone]
+
+          return unless name || phone
+
+          doc.customBilling do
+            doc.phone(options[:descriptor_phone]) if phone
+            doc.descriptor(options[:descriptor_name]) if name
+          end
+        end
+
+        # Private: Add shipping address information
+        def add_shipping_address(doc, options)
+          address = options[:shipping_address]
+          return if address.blank?
+
+          # Shipping address only accepts `name`
+          person = { name: address[:name] }
+
+          doc.shipToAddress do
+            add_address(doc, address, person, options)
+          end
+        end
+
+        # Private: Add truncated order id
+        def add_order_id(doc, options)
+          doc.orderId(truncate(options[:order_id], ORDER_ID_MAX_LENGTH))
+        end
+
+        # Private: Add order id with default
+        def add_order_source(doc, options)
+          doc.orderSource(options[:order_source].presence || SOURCE_ECOMMERCE)
+        end
+
+        # Private: Determine person name attributes for an address
+        def address_person(payment_method, address)
+          payment = {}
+
+          {}.tap do |person|
+            %i[name first_name last_name].each do |attribute|
+              # Get value from payment method if possible
+              if payment_method.respond_to?(:name)
+                payment[attribute] = payment_method.public_send(attribute)
+              end
+
+              # Payment method information takes precendence over address
+              person[attribute] = payment[attribute].presence ||
+                                  address[attribute]
+            end
+          end
+        end
+
+        # Private: Build the xml request and add authentication before yielding
+        def build_authenticated_xml_request
+          build_xml_request do |doc|
+            doc.authentication do
+              doc.user(@options[:login])
+              doc.password(@options[:password])
+            end
+            yield(doc)
+          end
+        end
+
+        # Private: Build and yield a simple xml builder `doc`
+        def build_xml_request
+          builder = Nokogiri::XML::Builder.new
+          builder.public_send(XML_REQUEST_ROOT, root_attributes) do |doc|
+            yield(doc)
+          end
+          builder.doc.root.to_xml
+        end
+
+        # Private: Helper method to format the expiration date
+        def exp_date(payment_method)
+          formatted_month = format(payment_method.month, :two_digits)
+          formatted_year = format(payment_method.year, :two_digits)
+
+          "#{formatted_month}#{formatted_year}"
+        end
+
+        # Private: Hash of default root attributes for the xml document
+        def root_attributes
+          {
+            merchantId: @options[:merchant_id],
+            version: SCHEMA_VERSION,
+            xmlns: XML_NAMESPACE
+          }
+        end
+
+        # Private: Helper method to create the transaction attrs for a request
+        def transaction_attributes(options)
+          attributes = {}
+          attributes[:id] = truncate(options[:id] ||
+                                     options[:order_id], ORDER_ID_MAX_LENGTH)
+          attributes[:reportGroup] = options[:merchant] || DEFAULT_REPORT_GROUP
+          attributes[:customerId] = options[:customer]
+          attributes.delete_if { |_key, value| value.nil? }
+          attributes
+        end
+      end
+
+      # Private: Builds and returns a `Request` object to be submitted to
+      # the gateway.
+      class RequestBuilder
+        include RequestBuilderHelpers
+
+        attr_reader :gateway
+
+        def initialize(gateway)
+          @gateway = gateway
+          # shim so it works with modules
+          @options = gateway_options
+        end
+
+        # Public: Gateway supported actions
+        #
+        # Subclasses will implement supported actions for that type
+        [
+          :authorize,
+          :capture,
+          :credit,
+          :purchase,
+          :refund,
+          :store,
+          :void
+        ].each do |action|
+          define_method(action) do
+            _not_supported
+          end
+        end
+
+      private
+
+        # Private: Build the xml request with the correct root node and attrs
+        def build_request(txn, response: nil, money: nil, options: {})
+          xml = build_authenticated_xml_request do |doc|
+            doc.public_send(txn, transaction_attributes(options)) do
+              add_order_id(doc, options)
+              yield(doc)
+            end
+          end
+
+          # Use the transaction if response not specified
+          response = response.presence || txn
+          Request.new(txn: txn, response: response, money: money, xml: xml)
+        end
+
+        # Private: Helper method to access the gateway options
+        def gateway_options
+          gateway.instance_variable_get("@options") || {}
+        end
+
+        # Private: Helper method to raise an exception for an unsupported action
+        def not_supported
+          fail NotImplementedError, "gateway action not supported"
+        end
+
+        ## Private: Shim helper methods from the `gateway`
+        def format(*args)
+          gateway.send(:format, *args)
+        end
+
+        def truncate(*args)
+          gateway.send(:truncate, *args)
+        end
+      end
+
+      # Private: Request builder for `Authorization` requests
+      #
+      # Implements supported *actions* for this type of request
+      class AuthorizationRequestBuilder < RequestBuilder
+        # Public: capture
+        def capture(money, payment_method, options = {})
+          build_request(:capture, money: money, options: options) do |doc|
+            doc.litleTxnId(payment_method.litle_txn_id)
+            doc.amount(money) if money.present?
+          end
+        end
+
+        # Public: refund
+        def refund(money, payment_method, options = {})
+          build_request(:credit, money: money, options: options) do |doc|
+            doc.litleTxnId(payment_method.litle_txn_id)
+            doc.amount(money) if money.present?
+            add_descriptor(doc, options)
+          end
+        end
+
+        # Public: void
+        def void(payment_method, options = {})
+          txn_type = payment_method.txn_type
+          type = void_type(txn_type)
+
+          build_request(type, options: options) do |doc|
+            doc.litleTxnId(payment_method.litle_txn_id)
+            money = options[:amount].presence || payment_method.amount
+            doc.amount(money) if type == :authReversal
+          end
+        end
+
+      private
+
+        # Private: Determine the type of `void`
+        def void_type(kind)
+          case kind
+          when VOID_TYPE_AUTHORIZATION
+            :authReversal
+          when :echeckSales, :echeckCredit
+            :echeckVoid
+          else
+            :void
+          end
+        end
+      end
+
+      # Private: Request builder for `Check` requests
+      #
+      # Implements supported *actions* for this type of request
+      class CheckRequestBuilder < RequestBuilder
+        # Public: purchase
+        def purchase(money, payment_method, options = {})
+          build_request(:echeckSale,
+                        response: :echeckSales,
+                        money: money,
+                        options: options) do |doc|
+            doc.amount(money)
+            add_order_source(doc, options)
+            add_billing_address(doc, payment_method, options)
+            add_shipping_address(doc, options)
+            add_descriptor(doc, options)
+            add_echeck(doc, payment_method)
+          end
+        end
+
+        # Public: refund
+        def refund(money, payment_method, options = {})
+          build_request(:echeckCredit, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_order_source(doc, options)
+            add_billing_address(doc, payment_method, options)
+            add_echeck(doc, payment_method)
+          end
+        end
+
+        # Public: store
+        def store(payment_method, options = {})
+          build_request(:registerTokenRequest,
+                        response: :registerToken,
+                        options: options) do |doc|
+            doc.echeckForToken do
+              doc.accNum(payment_method.account_number)
+              doc.routingNum(payment_method.routing_number)
+            end
+          end
+        end
+
+      private
+
+        # Private: Add `echeck` node to doc
+        def add_echeck(doc, payment_method)
+          doc.echeck do
+            holder_type = payment_method.account_holder_type
+            account_type = payment_method.account_type
+            doc.accType(CHECK_TYPE[holder_type][account_type])
+            doc.accNum(payment_method.account_number)
+            doc.routingNum(payment_method.routing_number)
+
+            check_number = payment_method.number
+            doc.checkNum(check_number) if check_number.present?
+          end
+        end
+      end
+
+      # Private: Request builder for `CreditCard` requests
+      #
+      #
+      # Implements supported *actions* for this type of request
+      # Note: `NetworkTokenizationCreditCard` are also supported here
+      class CreditCardRequestBuilder < RequestBuilder
+        # Public: authorize
+        def authorize(money, payment_method, options = {})
+          build_request(:authorization, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_billing_address(doc, payment_method, options)
+            add_shipping_address(doc, options)
+            add_pos(doc, payment_method)
+            add_descriptor(doc, options)
+            add_debt_repayment(doc, options)
+            add_cardholder_authentication(doc, payment_method)
+            add_card_and_source(doc, payment_method, options)
+          end
+        end
+
+        # Public: purchase
+        def purchase(money, payment_method, options = {})
+          build_request(:sale, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_billing_address(doc, payment_method, options)
+            add_shipping_address(doc, options)
+            add_pos(doc, payment_method)
+            add_descriptor(doc, options)
+            add_debt_repayment(doc, options)
+            add_cardholder_authentication(doc, payment_method)
+            add_card_and_source(doc, payment_method, options)
+          end
+        end
+
+        # Public: refund
+        def refund(money, payment_method, options = {})
+          build_request(:credit, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_billing_address(doc, payment_method, options)
+            add_descriptor(doc, options)
+            add_card_and_source(doc, payment_method, options)
+          end
+        end
+
+        # Public: store
+        def store(payment_method, options = {})
+          build_request(:registerTokenRequest,
+                        response: :registerToken,
+                        options: options) do |doc|
+            doc.accountNumber(payment_method.number)
+            if payment_method.verification_value
+              doc.cardValidationNum(payment_method.verification_value)
+            end
+          end
+        end
+
+      private
+
+        # Private: Add the `card` and `orderSource` nodes
+        #
+        # Both need to check the payment method so they're added here
+        def add_card_and_source(doc, payment_method, options)
+          order_source = options[:order_source].presence
+
+          if payment_method.respond_to?(:source) &&
+             payment_method.source == :apple_pay
+            order_source ||= SOURCE_APPLE_PAY
+          end
+
+          doc.card do
+            if payment_method_has_track_data?(payment_method)
+              doc.track(payment_method.track_data)
+              order_source ||= SOURCE_RETAIL
+            else
+              doc.type_(CARD_TYPE[payment_method.brand])
+              doc.number(payment_method.number)
+              doc.expDate(exp_date(payment_method))
+              doc.cardValidationNum(payment_method.verification_value)
+              order_source ||= SOURCE_ECOMMERCE
+            end
+          end
+          doc.orderSource(order_source)
+        end
+
+        # Private: Add the authentication data to support tokenized cards
+        def add_cardholder_authentication(doc, payment_method)
+          return unless payment_method.is_a?(NetworkTokenizationCreditCard)
+
+          doc.cardholderAuthentication do
+            doc.authenticationValue(payment_method.payment_cryptogram)
+          end
+        end
+
+        # Private: Add the `debtRepayment` node
+        def add_debt_repayment(doc, options)
+          doc.debtRepayment(true) if options[:debt_repayment] == true
+        end
+
+        # Private: Add point of sale information
+        def add_pos(doc, payment_method)
+          return unless payment_method_has_track_data?(payment_method)
+
+          doc.pos do
+            doc.capability(POS_CAPABILITY)
+            doc.entryMode(POS_ENTRY_MODE)
+            doc.cardholderId(POS_CARDHOLDER_ID)
+          end
+        end
+
+        # Private: Helper to determine if the payment method has track data
+        def payment_method_has_track_data?(payment_method)
+          payment_method.respond_to?(:track_data) &&
+            payment_method.track_data.present?
+        end
+      end
+
+      # Private: Request builder for `Registration` requests
+      #
+      # Implements supported *actions* for this type of request
+      class RegistrationRequestBuilder < RequestBuilder
+        # Public: authorize
+        def authorize(money, payment_method, options = {})
+          build_request(:authorization, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_order_source(doc, options)
+            add_billing_address(doc, payment_method, options)
+            add_shipping_address(doc, options)
+            add_descriptor(doc, options)
+            add_registration_id(doc, payment_method)
+          end
+        end
+
+        # Public: purchase
+        def purchase(money, payment_method, options = {})
+          build_request(:sale, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_order_source(doc, options)
+            add_billing_address(doc, payment_method, options)
+            add_shipping_address(doc, options)
+            add_descriptor(doc, options)
+            add_registration_id(doc, payment_method)
+          end
+        end
+
+        # Public: refund
+        def refund(money, payment_method, options = {})
+          build_request(:credit, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_order_source(doc, options)
+            add_billing_address(doc, payment_method, options)
+            add_descriptor(doc, options)
+            add_registration_id(doc, payment_method)
+          end
+        end
+
+        # Public: store
+        def store(payment_method, options = {})
+          build_request(:registerTokenRequest,
+                        response: :registerToken,
+                        options: options) do |doc|
+            doc.paypageRegistrationId(payment_method.id)
+          end
+        end
+
+      private
+
+        # Private: Add the registration node
+        def add_registration_id(doc, payment_method)
+          doc.paypage do
+            doc.paypageRegistrationId(payment_method.id)
+
+            expiration = exp_date(payment_method)
+            doc.expDate(expiration) if expiration.present?
+
+            cvv = payment_method.verification_value
+            doc.cardValidationNum(cvv) if cvv.present?
+          end
+        end
+      end
+
+      # Private: Request builder for `Token` requests
+      class TokenRequestBuilder < RequestBuilder
+        # Public: authorize
+        def authorize(money, payment_method, options = {})
+          build_request(:authorization, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_order_source(doc, options)
+            add_billing_address(doc, payment_method, options)
+            add_shipping_address(doc, options)
+            add_descriptor(doc, options)
+            add_token(doc, payment_method)
+          end
+        end
+
+        # Public: purchase
+        def purchase(money, payment_method, options = {})
+          build_request(:sale, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_order_source(doc, options)
+            add_billing_address(doc, payment_method, options)
+            add_shipping_address(doc, options)
+            add_descriptor(doc, options)
+            add_token(doc, payment_method)
+          end
+        end
+
+        # Public: refund
+        def refund(money, payment_method, options = {})
+          build_request(:credit, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_order_source(doc, options)
+            add_billing_address(doc, payment_method, options)
+            add_descriptor(doc, options)
+            add_token(doc, payment_method)
+          end
+        end
+
+      private
+
+        # Private: Add the `token` node
+        def add_token(doc, payment_method)
+          doc.token do
+            token = payment_method.litle_token
+            doc.litleToken(token) if token.present?
+
+            expiration = exp_date(payment_method)
+            doc.expDate(expiration) if expiration.present?
+
+            cvv = payment_method.verification_value
+            doc.cardValidationNum(cvv) if cvv.present?
+          end
+        end
+      end
+
       # Public: Create a new Vantiv gateway.
       #
       # options - A hash of options:
@@ -194,44 +749,41 @@ module ActiveMerchant #:nodoc:
       def initialize(options = {})
         requires!(options, :login, :password, :merchant_id)
         super
+
+        # Simple registry to map payment method types to request builders
+        # See: `requests` method for lookup
+        @request_builders = {
+          Authorization => AuthorizationRequestBuilder.new(self),
+          Check => CheckRequestBuilder.new(self),
+          CreditCard => CreditCardRequestBuilder.new(self),
+          NetworkTokenizationCreditCard => CreditCardRequestBuilder.new(self),
+          Registration => RegistrationRequestBuilder.new(self),
+          Token => TokenRequestBuilder.new(self)
+        }
       end
 
       # Public: Authorize that a customer has submitted a valid payment method
       # and that they have sufficient funds for the transation.
-      #
-      # Supported payment methods:
-      #   * `CreditCard`
-      #   * `NetworkTokenizationCreditCard`
-      #   * `Registration`
-      #   * `Token`
-      #
-      # Vantiv transaction: `authorization`
       def authorize(money, payment_method, options = {})
-        request = build_authenticated_xml_request do |doc|
-          doc.authorization(transaction_attributes(options)) do
-            add_auth_purchase_params(doc, money, payment_method, options)
-          end
-        end
+        request = requests(payment_method).authorize(
+          money,
+          payment_method,
+          options
+        )
 
-        commit(:authorization, request, money)
+        submit_request(request)
       end
 
       # Public: Capture the referenced authorization transaction to transfer
       # funds from the customer to the merchant.
-      #
-      # Supported authorization:
-      #   * `Authorization`
-      #
-      # Vantiv transaction: `capture`
       def capture(money, authorization, options = {})
-        request = build_authenticated_xml_request do |doc|
-          doc.capture_(transaction_attributes(options)) do
-            doc.litleTxnId(authorization.litle_txn_id)
-            doc.amount(money) if money.present?
-          end
-        end
+        request = requests(authorization).capture(
+          money,
+          authorization,
+          options
+        )
 
-        commit(:capture, request, money)
+        submit_request(request)
       end
 
       # [DEPRECATED] Public: Refund money to a customer.
@@ -244,80 +796,25 @@ module ActiveMerchant #:nodoc:
 
       # Public: A single transaction to authorize and transfer funds from
       # the customer to the merchant.
-      #
-      # Supported payment methods:
-      #   * `Check`
-      #   * `CreditCard`
-      #   * `NetworkTokenizationCreditCard`
-      #   * `Registration`
-      #   * `Token`
-      #
-      # Vantiv transaction: `sale` or `echeckSale`
       def purchase(money, payment_method, options = {})
-        kind, node = if payment_method_is_check?(payment_method)
-                       [:echeckSales, :echeckSale]
-                     else
-                       [:sale, :sale]
-                     end
+        request = requests(payment_method).purchase(
+          money,
+          payment_method,
+          options
+        )
 
-        request = build_authenticated_xml_request do |doc|
-          doc.public_send(node, transaction_attributes(options)) do
-            add_auth_purchase_params(doc, money, payment_method, options)
-          end
-        end
-
-        commit(kind, request, money)
+        submit_request(request)
       end
 
       # Public: Refund money to a customer.
-      #
-      # Supported refund sources:
-      #   * `Authorization`
-      #   * `Check`
-      #   * `Registration`
-      #
-      # Vantiv transaction: `credit` or `echeckCredit`
-      def refund(money, refund_source, options = {})
-        if refund_source.is_a?(Authorization)
-          kind = refund_type(refund_source.txn_type)
+      def refund(money, payment_method, options = {})
+        request = requests(payment_method).refund(
+          money,
+          payment_method,
+          options
+        )
 
-          request = build_authenticated_xml_request do |doc|
-            doc.public_send(kind, transaction_attributes(options)) do
-              doc.litleTxnId(refund_source.litle_txn_id)
-              doc.amount(money) if money.present?
-              add_descriptor(doc, options)
-            end
-          end
-
-          commit(kind, request)
-        elsif refund_source.is_a?(Check)
-          request = build_authenticated_xml_request do |doc|
-            doc.echeckCredit(transaction_attributes(options)) do
-              doc.orderId(truncate(options[:order_id], ORDER_ID_MAX_LENGTH))
-              doc.amount(money)
-              add_order_source(doc, refund_source, options)
-              add_billing_address(doc, refund_source, options)
-              add_payment_method(doc, refund_source)
-            end
-          end
-
-          commit(:echeckCredit, request)
-        elsif refund_source.is_a?(CreditCard) ||
-              refund_source.is_a?(Registration) ||
-              refund_source.is_a?(Token)
-          request = build_authenticated_xml_request do |doc|
-            doc.credit(transaction_attributes(options)) do
-              doc.orderId(truncate(options[:order_id], ORDER_ID_MAX_LENGTH))
-              doc.amount(money)
-              add_order_source(doc, refund_source, options)
-              add_billing_address(doc, refund_source, options)
-              add_payment_method(doc, refund_source)
-              add_descriptor(doc, options)
-            end
-          end
-
-          commit(:credit, request)
-        end
+        submit_request(request)
       end
 
       # Public: Scrub text for sensitive values.
@@ -330,36 +827,13 @@ module ActiveMerchant #:nodoc:
       end
 
       # Public: Submit a payment method and receive a Vantiv token in return.
-      #
-      # Supported payment_methods:
-      #   * `Check`
-      #   * `CreditCard`
-      #   * `Registration`
-      #
-      # Vantiv transaction: `registerTokenRequest`
       def store(payment_method, options = {})
-        request = build_authenticated_xml_request do |doc|
-          doc.registerTokenRequest(transaction_attributes(options)) do
-            doc.orderId(truncate(options[:order_id], ORDER_ID_MAX_LENGTH))
+        request = requests(payment_method).store(
+          payment_method,
+          options
+        )
 
-            if payment_method_is_registration?(payment_method)
-              doc.paypageRegistrationId(payment_method.id)
-            elsif payment_method_is_check?(payment_method)
-              doc.echeckForToken do
-                doc.accNum(payment_method.account_number)
-                doc.routingNum(payment_method.routing_number)
-              end
-            else
-              doc.accountNumber(payment_method.number)
-
-              if payment_method.verification_value
-                doc.cardValidationNum(payment_method.verification_value)
-              end
-            end
-          end
-        end
-
-        commit(:registerToken, request)
+        submit_request(request)
       end
 
       # Public: Indicates if this gateway supports scrubbing.
@@ -397,195 +871,17 @@ module ActiveMerchant #:nodoc:
       #
       # Vantiv transaction: `void` or `authReversal`
       def void(authorization, options = {})
-        kind = authorization.txn_type
-        money = if options[:amount].present?
-                  options[:amount]
-                else
-                  authorization.amount
-                end
+        request = requests(authorization).void(
+          authorization,
+          options
+        )
 
-        request = build_authenticated_xml_request do |doc|
-          doc.public_send(void_type(kind), transaction_attributes(options)) do
-            doc.litleTxnId(authorization.litle_txn_id)
-            doc.amount(money) if void_type(kind) == :authReversal
-          end
-        end
-
-        commit(void_type(kind), request)
+        submit_request(request)
       end
 
     private
 
-      # Private: Add address elements common to billing and shipping
-      def add_address(doc, address, customer, options)
-        doc.name(customer[:name]) unless customer[:name].blank?
-        doc.firstName(customer[:first_name]) unless customer[:first_name].blank?
-        doc.lastName(customer[:last_name]) unless customer[:last_name].blank?
-        doc.addressLine1(address[:address1]) unless address[:address1].blank?
-        doc.addressLine2(address[:address2]) unless address[:address2].blank?
-        doc.city(address[:city]) unless address[:city].blank?
-        doc.state(address[:state]) unless address[:state].blank?
-        doc.zip(address[:zip]) unless address[:zip].blank?
-        doc.country(address[:country]) unless address[:country].blank?
-        doc.email(options[:email]) unless options[:email].blank?
-        doc.phone(address[:phone]) unless address[:phone].blank?
-      end
-
-      def add_auth_purchase_params(doc, money, payment_method, options)
-        doc.orderId(truncate(options[:order_id], ORDER_ID_MAX_LENGTH))
-        doc.amount(money)
-        add_order_source(doc, payment_method, options)
-        add_billing_address(doc, payment_method, options)
-        add_shipping_address(doc, options)
-        add_payment_method(doc, payment_method)
-        add_pos(doc, payment_method)
-        add_descriptor(doc, options)
-        add_debt_repayment(doc, options)
-      end
-
-      def add_authentication(doc)
-        doc.authentication do
-          doc.user(@options[:login])
-          doc.password(@options[:password])
-        end
-      end
-
-      # Private: Add billing address information
-      #
-      # The `billToAddress` element is always added
-      def add_billing_address(doc, payment_method, options)
-        address = options[:billing_address] || {}
-        customer = address_customer(payment_method, address)
-
-        doc.billToAddress do
-          add_address(doc, address, customer, options)
-          doc.companyName(address[:company]) unless address[:company].blank?
-        end
-      end
-
-      def add_debt_repayment(doc, options)
-        doc.debtRepayment(true) if options[:debt_repayment] == true
-      end
-
-      def add_descriptor(doc, options)
-        name = options[:descriptor_name]
-        phone = options[:descriptor_phone]
-
-        return unless name || phone
-
-        doc.customBilling do
-          doc.phone(options[:descriptor_phone]) if phone
-          doc.descriptor(options[:descriptor_name]) if name
-        end
-      end
-
-      def add_order_source(doc, payment_method, options)
-        source = if options[:order_source]
-                   options[:order_source]
-                 elsif payment_method_is_apple_pay?(payment_method)
-                   SOURCE_APPLE_PAY
-                 elsif payment_method_has_track_data?(payment_method)
-                   SOURCE_RETAIL
-                 else
-                   SOURCE_ECOMMERCE
-                 end
-
-        doc.orderSource(source)
-      end
-
-      def add_payment_method(doc, payment_method)
-        if payment_method_is_check?(payment_method)
-          doc.echeck do
-            holder_type = payment_method.account_holder_type
-            account_type = payment_method.account_type
-            doc.accType(CHECK_TYPE[holder_type][account_type])
-            doc.accNum(payment_method.account_number)
-            doc.routingNum(payment_method.routing_number)
-
-            check_number = payment_method.number
-            doc.checkNum(check_number) if check_number.present?
-          end
-        elsif payment_method_is_token?(payment_method)
-          doc.token do
-            token = payment_method.litle_token
-            doc.litleToken(token) if token.present?
-
-            expiration = exp_date(payment_method)
-            doc.expDate(expiration) if expiration.present?
-
-            cvv = payment_method.verification_value
-            doc.cardValidationNum(cvv) if cvv.present?
-          end
-        elsif payment_method_is_registration?(payment_method)
-          doc.paypage do
-            doc.paypageRegistrationId(payment_method.id)
-
-            expiration = exp_date(payment_method)
-            doc.expDate(expiration) if expiration.present?
-
-            cvv = payment_method.verification_value
-            doc.cardValidationNum(cvv) if cvv.present?
-          end
-        elsif payment_method_has_track_data?(payment_method)
-          doc.card do
-            doc.track(payment_method.track_data)
-          end
-        else
-          doc.card do
-            doc.type_(CARD_TYPE[payment_method.brand])
-            doc.number(payment_method.number)
-            doc.expDate(exp_date(payment_method))
-            doc.cardValidationNum(payment_method.verification_value)
-          end
-          if payment_method_is_network_tokenized?(payment_method)
-            doc.cardholderAuthentication do
-              doc.authenticationValue(payment_method.payment_cryptogram)
-            end
-          end
-        end
-      end
-
-      def add_pos(doc, payment_method)
-        return unless payment_method_has_track_data?(payment_method)
-
-        doc.pos do
-          doc.capability(POS_CAPABILITY)
-          doc.entryMode(POS_ENTRY_MODE)
-          doc.cardholderId(POS_CARDHOLDER_ID)
-        end
-      end
-
-      # Private: Add shipping address information
-      def add_shipping_address(doc, options)
-        address = options[:shipping_address]
-        return if address.blank?
-
-        # Shipping address only accepts `name`
-        customer = { name: address[:name] }
-
-        doc.shipToAddress do
-          add_address(doc, address, customer, options)
-        end
-      end
-
-      # Private: Determine customer name attributes for an address
-      def address_customer(payment_method, address)
-        payment = {}
-
-        {}.tap do |customer|
-          %i[name first_name last_name].each do |attribute|
-            # Get value from payment method if possible
-            if payment_method_has_customer_name?(payment_method)
-              payment[attribute] = payment_method.public_send(attribute)
-            end
-
-            # Payment method information takes precendence over address
-            customer[attribute] = payment[attribute].presence ||
-                                  address[attribute]
-          end
-        end
-      end
-
+      # Private: Create `Authorization` from the parsed response
       def authorization_from(kind, parsed, money)
         if kind == :registerToken
           parsed[:litleToken]
@@ -598,24 +894,9 @@ module ActiveMerchant #:nodoc:
         end
       end
 
-      # Private: Build the xml request and add authentication before yielding
-      def build_authenticated_xml_request
-        build_xml_request do |doc|
-          add_authentication(doc)
-          yield(doc)
-        end
-      end
-
-      def build_xml_request
-        builder = Nokogiri::XML::Builder.new
-        builder.public_send(XML_REQUEST_ROOT, root_attributes) do |doc|
-          yield(doc)
-        end
-        builder.doc.root.to_xml
-      end
-
+      # Private: Commit request data to Vantiv gateway and return a `Response`
       def commit(kind, request, money = nil)
-        parsed = parse(kind, ssl_post(url, request, headers))
+        parsed = parse(kind, ssl_post(url, request, DEFAULT_HEADERS))
 
         options = {
           authorization: authorization_from(kind, parsed, money),
@@ -634,17 +915,7 @@ module ActiveMerchant #:nodoc:
         )
       end
 
-      def exp_date(payment_method)
-        formatted_month = format(payment_method.month, :two_digits)
-        formatted_year = format(payment_method.year, :two_digits)
-
-        "#{formatted_month}#{formatted_year}"
-      end
-
-      def headers
-        DEFAULT_HEADERS
-      end
-
+      # Private: Parse the response from the Vantiv gateway into a Hash
       def parse(kind, xml)
         parsed = {}
 
@@ -672,44 +943,17 @@ module ActiveMerchant #:nodoc:
         parsed
       end
 
-      def payment_method_has_customer_name?(payment_method)
-        payment_method.respond_to?(:name)
+      # Private: Lookup up a request builder based on the class of the object
+      def requests(type)
+        @request_builders[type.class]
       end
 
-      def payment_method_has_track_data?(payment_method)
-        payment_method.respond_to?(:track_data) &&
-          payment_method.track_data.present?
+      # Private: Submit a `Request` to Vantiv gateway via the `commit` method
+      def submit_request(request)
+        commit(request.response, request.xml, request.money)
       end
 
-      def payment_method_is_apple_pay?(payment_method)
-        payment_method_is_network_tokenized?(payment_method) &&
-          payment_method.source == :apple_pay
-      end
-
-      def payment_method_is_check?(payment_method)
-        payment_method.is_a?(Check)
-      end
-
-      def payment_method_is_network_tokenized?(payment_method)
-        payment_method.is_a?(NetworkTokenizationCreditCard)
-      end
-
-      def payment_method_is_registration?(payment_method)
-        payment_method.is_a?(Registration)
-      end
-
-      def payment_method_is_token?(payment_method)
-        payment_method.is_a?(Token)
-      end
-
-      def root_attributes
-        {
-          merchantId: @options[:merchant_id],
-          version: SCHEMA_VERSION,
-          xmlns: XML_NAMESPACE
-        }
-      end
-
+      # Private: Determine if the response was a success
       def success_from(kind, parsed)
         approved = (parsed[:response] == RESPONSE_CODE_APPROVED)
         return approved unless kind == :registerToken
@@ -717,35 +961,11 @@ module ActiveMerchant #:nodoc:
         RESPONSE_CODES_APPROVED.include?(parsed[:response])
       end
 
-      def transaction_attributes(options)
-        attributes = {}
-        attributes[:id] = truncate(options[:id] ||
-          options[:order_id], ORDER_ID_MAX_LENGTH)
-        attributes[:reportGroup] = options[:merchant] || DEFAULT_REPORT_GROUP
-        attributes[:customerId] = options[:customer]
-        attributes.delete_if { |_key, value| value.nil? }
-        attributes
-      end
-
+      # Private: Return the correct URL based on the gateway options
       def url
         return @options[:url] if @options[:url].present?
 
         test? ? test_url : live_url
-      end
-
-      def refund_type(kind)
-        kind == :echeckSales ? :echeckCredit : :credit
-      end
-
-      def void_type(kind)
-        case kind
-        when VOID_TYPE_AUTHORIZATION
-          :authReversal
-        when :echeckSales, :echeckCredit
-          :echeckVoid
-        else
-          :void
-        end
       end
     end
   end
