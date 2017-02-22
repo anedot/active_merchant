@@ -992,7 +992,7 @@ class VantivTest < Test::Unit::TestCase
 
   def test_void__refund_authorization_successful
     refund = stub_comms do
-      @gateway.refund(@amount, @authorize_authorization)
+      @gateway.refund(nil, @authorize_authorization)
     end.respond_with(_response_refund__purchase_successful)
 
     assert_equal @refund_without_amount_authorization, refund.authorization
