@@ -516,13 +516,14 @@ module ActiveMerchant #:nodoc:
         def authorize(money, payment_method, options = {})
           build_request(:authorization, money: money, options: options) do |doc|
             doc.amount(money)
+            add_order_source(doc, payment_method, options)
             add_billing_address(doc, payment_method, options)
             add_shipping_address(doc, options)
             add_pos(doc, payment_method)
             add_descriptor(doc, options)
             add_debt_repayment(doc, options)
             add_cardholder_authentication(doc, payment_method)
-            add_card_and_source(doc, payment_method, options)
+            add_card(doc, payment_method)
           end
         end
 
@@ -530,13 +531,14 @@ module ActiveMerchant #:nodoc:
         def purchase(money, payment_method, options = {})
           build_request(:sale, money: money, options: options) do |doc|
             doc.amount(money)
+            add_order_source(doc, payment_method, options)
             add_billing_address(doc, payment_method, options)
             add_shipping_address(doc, options)
             add_pos(doc, payment_method)
             add_descriptor(doc, options)
             add_debt_repayment(doc, options)
             add_cardholder_authentication(doc, payment_method)
-            add_card_and_source(doc, payment_method, options)
+            add_card(doc, payment_method)
           end
         end
 
@@ -544,9 +546,10 @@ module ActiveMerchant #:nodoc:
         def refund(money, payment_method, options = {})
           build_request(:credit, money: money, options: options) do |doc|
             doc.amount(money)
+            add_order_source(doc, payment_method, options)
             add_billing_address(doc, payment_method, options)
             add_descriptor(doc, options)
-            add_card_and_source(doc, payment_method, options)
+            add_card(doc, payment_method)
           end
         end
 
@@ -564,30 +567,18 @@ module ActiveMerchant #:nodoc:
 
       private
 
-        # Private: Add the `card` and `orderSource` nodes
-        #
-        # Both need to check the payment method so they're added here
-        def add_card_and_source(doc, payment_method, options)
-          order_source = options[:order_source].presence
-
-          if payment_method.respond_to?(:source) &&
-             payment_method.source == :apple_pay
-            order_source ||= SOURCE_APPLE_PAY
-          end
-
+        # Private: Add the `card` node
+        def add_card(doc, payment_method)
           doc.card do
             if payment_method_has_track_data?(payment_method)
               doc.track(payment_method.track_data)
-              order_source ||= SOURCE_RETAIL
             else
               doc.type_(CARD_TYPE[payment_method.brand])
               doc.number(payment_method.number)
               doc.expDate(exp_date(payment_method))
               doc.cardValidationNum(payment_method.verification_value)
-              order_source ||= SOURCE_ECOMMERCE
             end
           end
-          doc.orderSource(order_source)
         end
 
         # Private: Add the authentication data to support tokenized cards
@@ -602,6 +593,24 @@ module ActiveMerchant #:nodoc:
         # Private: Add the `debtRepayment` node
         def add_debt_repayment(doc, options)
           doc.debtRepayment(true) if options[:debt_repayment] == true
+        end
+
+        # Private: Add the `orderSource` node based on payment method
+        def add_order_source(doc, payment_method, options)
+          order_source = options[:order_source].presence
+
+          if payment_method.respond_to?(:source) &&
+             payment_method.source == :apple_pay
+            order_source ||= SOURCE_APPLE_PAY
+          end
+
+          order_source ||= if payment_method_has_track_data?(payment_method)
+                             SOURCE_RETAIL
+                           else
+                             SOURCE_ECOMMERCE
+                           end
+
+          doc.orderSource(order_source)
         end
 
         # Private: Add point of sale information
