@@ -119,14 +119,15 @@ module ActiveMerchant #:nodoc:
       class Authorization
         attr_reader :amount, :litle_txn_id, :txn_type
 
-        def initialize(amount: nil, litle_txn_id: nil, txn_type: nil)
+        def initialize(litle_txn_id, amount: nil, txn_type: nil)
           @amount = amount
           @litle_txn_id = litle_txn_id
           @txn_type = txn_type
         end
 
         def ==(other)
-          amount == other.amount &&
+          other.is_a?(Authorization) &&
+            amount == other.amount &&
             litle_txn_id == other.litle_txn_id &&
             txn_type == other.txn_type
         end
@@ -926,8 +927,8 @@ module ActiveMerchant #:nodoc:
           parsed[:litleToken]
         else
           Authorization.new(
+            parsed[:litleTxnId],
             amount: money,
-            litle_txn_id: parsed[:litleTxnId],
             txn_type: kind
           )
         end

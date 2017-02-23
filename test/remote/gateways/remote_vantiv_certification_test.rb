@@ -805,7 +805,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     }
 
     authorization = VantivGateway::Authorization.new(
-      litle_txn_id: "2",
+      "2",
       txn_type: :echeckSales
     )
 
