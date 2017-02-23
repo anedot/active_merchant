@@ -15,42 +15,42 @@ class VantivTest < Test::Unit::TestCase
     )
 
     @authorize_authorization = VantivGateway::Authorization.new(
+      "100000000000000001",
       amount: 100,
-      litle_txn_id: "100000000000000001",
       txn_type: :authorization
     )
     @authorize_authorization_invalid_id = VantivGateway::Authorization.new(
+      "123456789012345360",
       amount: 100,
-      litle_txn_id: "123456789012345360",
       txn_type: :authorization
     )
     @capture_authorization = VantivGateway::Authorization.new(
+      "100000000000000002",
       amount: 100,
-      litle_txn_id: "100000000000000002",
       txn_type: :capture
     )
     @invalid_authorization = VantivGateway::Authorization.new(
+      "12345",
       amount: 0,
-      litle_txn_id: "12345",
       txn_type: :invalid_authorization
     )
     @refund_authorization = VantivGateway::Authorization.new(
+      "123456789012345360",
       amount: 100,
-      litle_txn_id: "123456789012345360",
       txn_type: :credit
     )
     @refund_without_amount_authorization = VantivGateway::Authorization.new(
-      litle_txn_id: "100000000000000003",
+      "100000000000000003",
       txn_type: :credit
     )
     @purchase_authorization = VantivGateway::Authorization.new(
+      "100000000000000006",
       amount: 100,
-      litle_txn_id: "100000000000000006",
       txn_type: :sale
     )
     @purchase_echeck_authorization = VantivGateway::Authorization.new(
+      "84568456",
       amount: 100,
-      litle_txn_id: "84568456",
       txn_type: :echeckSales
     )
 
