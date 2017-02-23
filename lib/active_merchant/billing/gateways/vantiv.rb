@@ -177,8 +177,8 @@ module ActiveMerchant #:nodoc:
       #   token = ActiveMerchant::Billing::VantivGateway::Token.new(
       #     "1234567890",
       #     month: "9",
-      #     year: "2021",
-      #     verification_value: "424"
+      #     verification_value: "424",
+      #     year: "2021"
       #   )
       #
       # This is based on `PaymentToken` so all options are stored in the
@@ -187,6 +187,18 @@ module ActiveMerchant #:nodoc:
         attr_reader :metadata
 
         alias litle_token payment_data
+
+        # Private: Override initialize to specify required and optional params
+        #
+        # Keyword args makes it easier for callers to see what's expected.
+        def initialize(token, month: "", verification_value: "", year: "")
+          super(
+            token,
+            month: month,
+            verification_value: verification_value,
+            year: year
+          )
+        end
 
         def month
           metadata.fetch("month", "")
