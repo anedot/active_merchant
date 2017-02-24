@@ -367,10 +367,14 @@ module ActiveMerchant #:nodoc:
       private
 
         # Private: Build the xml request with the correct root node and attrs
-        def build_request(txn, response: nil, money: nil, options: {})
+        def build_request(txn,
+                          response: nil,
+                          money: nil,
+                          order_id: true,
+                          options: {})
           xml = build_authenticated_xml_request do |doc|
             doc.public_send(txn, transaction_attributes(options)) do
-              add_order_id(doc, options)
+              add_order_id(doc, options) if order_id
               yield(doc)
             end
           end
@@ -406,7 +410,10 @@ module ActiveMerchant #:nodoc:
       class AuthorizationRequestBuilder < RequestBuilder
         # Public: capture
         def capture(money, payment_method, options = {})
-          build_request(:capture, money: money, options: options) do |doc|
+          build_request(:capture,
+                        money: money,
+                        order_id: false,
+                        options: options) do |doc|
             doc.litleTxnId(payment_method.litle_txn_id)
             doc.amount(money) if money.present?
           end
@@ -414,7 +421,12 @@ module ActiveMerchant #:nodoc:
 
         # Public: refund
         def refund(money, payment_method, options = {})
-          build_request(:credit, money: money, options: options) do |doc|
+          type = refund_type(payment_method.txn_type)
+
+          build_request(type,
+                        money: money,
+                        order_id: false,
+                        options: options) do |doc|
             doc.litleTxnId(payment_method.litle_txn_id)
             doc.amount(money) if money.present?
             add_descriptor(doc, options)
@@ -423,10 +435,9 @@ module ActiveMerchant #:nodoc:
 
         # Public: void
         def void(payment_method, options = {})
-          txn_type = payment_method.txn_type
-          type = void_type(txn_type)
+          type = void_type(payment_method.txn_type)
 
-          build_request(type, options: options) do |doc|
+          build_request(type, order_id: false, options: options) do |doc|
             doc.litleTxnId(payment_method.litle_txn_id)
             money = options[:amount].presence || payment_method.amount
             doc.amount(money) if type == :authReversal
@@ -434,6 +445,11 @@ module ActiveMerchant #:nodoc:
         end
 
       private
+
+        # Private: Determine the type of `refund`
+        def refund_type(kind)
+          kind == :echeckSales ? :echeckCredit : :credit
+        end
 
         # Private: Determine the type of `void`
         def void_type(kind)
@@ -462,8 +478,8 @@ module ActiveMerchant #:nodoc:
             add_order_source(doc, options)
             add_billing_address(doc, payment_method, options)
             add_shipping_address(doc, options)
-            add_descriptor(doc, options)
             add_echeck(doc, payment_method)
+            add_descriptor(doc, options)
           end
         end
 
@@ -474,6 +490,7 @@ module ActiveMerchant #:nodoc:
             add_order_source(doc, options)
             add_billing_address(doc, payment_method, options)
             add_echeck(doc, payment_method)
+            add_descriptor(doc, options)
           end
         end
 
@@ -519,11 +536,11 @@ module ActiveMerchant #:nodoc:
             add_order_source(doc, payment_method, options)
             add_billing_address(doc, payment_method, options)
             add_shipping_address(doc, options)
+            add_card(doc, payment_method)
+            add_cardholder_authentication(doc, payment_method)
             add_pos(doc, payment_method)
             add_descriptor(doc, options)
             add_debt_repayment(doc, options)
-            add_cardholder_authentication(doc, payment_method)
-            add_card(doc, payment_method)
           end
         end
 
@@ -534,11 +551,11 @@ module ActiveMerchant #:nodoc:
             add_order_source(doc, payment_method, options)
             add_billing_address(doc, payment_method, options)
             add_shipping_address(doc, options)
-            add_pos(doc, payment_method)
-            add_descriptor(doc, options)
-            add_debt_repayment(doc, options)
-            add_cardholder_authentication(doc, payment_method)
             add_card(doc, payment_method)
+            add_cardholder_authentication(doc, payment_method)
+            add_descriptor(doc, options)
+            add_pos(doc, payment_method)
+            add_debt_repayment(doc, options)
           end
         end
 
@@ -548,8 +565,9 @@ module ActiveMerchant #:nodoc:
             doc.amount(money)
             add_order_source(doc, payment_method, options)
             add_billing_address(doc, payment_method, options)
-            add_descriptor(doc, options)
             add_card(doc, payment_method)
+            add_descriptor(doc, options)
+            add_pos(doc, payment_method)
           end
         end
 
@@ -642,8 +660,8 @@ module ActiveMerchant #:nodoc:
             add_order_source(doc, options)
             add_billing_address(doc, payment_method, options)
             add_shipping_address(doc, options)
-            add_descriptor(doc, options)
             add_registration_id(doc, payment_method)
+            add_descriptor(doc, options)
           end
         end
 
@@ -654,8 +672,8 @@ module ActiveMerchant #:nodoc:
             add_order_source(doc, options)
             add_billing_address(doc, payment_method, options)
             add_shipping_address(doc, options)
-            add_descriptor(doc, options)
             add_registration_id(doc, payment_method)
+            add_descriptor(doc, options)
           end
         end
 
@@ -665,8 +683,8 @@ module ActiveMerchant #:nodoc:
             doc.amount(money)
             add_order_source(doc, options)
             add_billing_address(doc, payment_method, options)
-            add_descriptor(doc, options)
             add_registration_id(doc, payment_method)
+            add_descriptor(doc, options)
           end
         end
 
@@ -704,8 +722,8 @@ module ActiveMerchant #:nodoc:
             add_order_source(doc, options)
             add_billing_address(doc, payment_method, options)
             add_shipping_address(doc, options)
-            add_descriptor(doc, options)
             add_token(doc, payment_method)
+            add_descriptor(doc, options)
           end
         end
 
@@ -716,8 +734,8 @@ module ActiveMerchant #:nodoc:
             add_order_source(doc, options)
             add_billing_address(doc, payment_method, options)
             add_shipping_address(doc, options)
-            add_descriptor(doc, options)
             add_token(doc, payment_method)
+            add_descriptor(doc, options)
           end
         end
 
@@ -727,8 +745,8 @@ module ActiveMerchant #:nodoc:
             doc.amount(money)
             add_order_source(doc, options)
             add_billing_address(doc, payment_method, options)
-            add_descriptor(doc, options)
             add_token(doc, payment_method)
+            add_descriptor(doc, options)
           end
         end
 
