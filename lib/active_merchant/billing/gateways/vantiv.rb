@@ -221,7 +221,7 @@ module ActiveMerchant #:nodoc:
         # Private: Add billing address information
         #
         # The `billToAddress` element is always added
-        def add_billing_address(doc, payment_method, options)
+        def add_bill_to_address(doc, payment_method, options)
           address = options[:billing_address] || {}
           person = address_person(payment_method, address)
 
@@ -232,7 +232,7 @@ module ActiveMerchant #:nodoc:
         end
 
         # Private: Add the custom billing descriptor
-        def add_descriptor(doc, options)
+        def add_custom_billing(doc, options)
           name = options[:descriptor_name]
           phone = options[:descriptor_phone]
 
@@ -245,7 +245,7 @@ module ActiveMerchant #:nodoc:
         end
 
         # Private: Add shipping address information
-        def add_shipping_address(doc, options)
+        def add_ship_to_address(doc, options)
           address = options[:shipping_address]
           return if address.blank?
 
@@ -429,7 +429,7 @@ module ActiveMerchant #:nodoc:
                         options: options) do |doc|
             doc.litleTxnId(payment_method.litle_txn_id)
             doc.amount(money) if money.present?
-            add_descriptor(doc, options)
+            add_custom_billing(doc, options)
           end
         end
 
@@ -476,10 +476,10 @@ module ActiveMerchant #:nodoc:
                         options: options) do |doc|
             doc.amount(money)
             add_order_source(doc, options)
-            add_billing_address(doc, payment_method, options)
-            add_shipping_address(doc, options)
+            add_bill_to_address(doc, payment_method, options)
+            add_ship_to_address(doc, options)
             add_echeck(doc, payment_method)
-            add_descriptor(doc, options)
+            add_custom_billing(doc, options)
           end
         end
 
@@ -488,9 +488,9 @@ module ActiveMerchant #:nodoc:
           build_request(:echeckCredit, money: money, options: options) do |doc|
             doc.amount(money)
             add_order_source(doc, options)
-            add_billing_address(doc, payment_method, options)
+            add_bill_to_address(doc, payment_method, options)
             add_echeck(doc, payment_method)
-            add_descriptor(doc, options)
+            add_custom_billing(doc, options)
           end
         end
 
@@ -534,12 +534,12 @@ module ActiveMerchant #:nodoc:
           build_request(:authorization, money: money, options: options) do |doc|
             doc.amount(money)
             add_order_source(doc, payment_method, options)
-            add_billing_address(doc, payment_method, options)
-            add_shipping_address(doc, options)
+            add_bill_to_address(doc, payment_method, options)
+            add_ship_to_address(doc, options)
             add_card(doc, payment_method)
             add_cardholder_authentication(doc, payment_method)
             add_pos(doc, payment_method)
-            add_descriptor(doc, options)
+            add_custom_billing(doc, options)
             add_debt_repayment(doc, options)
           end
         end
@@ -549,11 +549,11 @@ module ActiveMerchant #:nodoc:
           build_request(:sale, money: money, options: options) do |doc|
             doc.amount(money)
             add_order_source(doc, payment_method, options)
-            add_billing_address(doc, payment_method, options)
-            add_shipping_address(doc, options)
+            add_bill_to_address(doc, payment_method, options)
+            add_ship_to_address(doc, options)
             add_card(doc, payment_method)
             add_cardholder_authentication(doc, payment_method)
-            add_descriptor(doc, options)
+            add_custom_billing(doc, options)
             add_pos(doc, payment_method)
             add_debt_repayment(doc, options)
           end
@@ -564,9 +564,9 @@ module ActiveMerchant #:nodoc:
           build_request(:credit, money: money, options: options) do |doc|
             doc.amount(money)
             add_order_source(doc, payment_method, options)
-            add_billing_address(doc, payment_method, options)
+            add_bill_to_address(doc, payment_method, options)
             add_card(doc, payment_method)
-            add_descriptor(doc, options)
+            add_custom_billing(doc, options)
             add_pos(doc, payment_method)
           end
         end
@@ -658,10 +658,10 @@ module ActiveMerchant #:nodoc:
           build_request(:authorization, money: money, options: options) do |doc|
             doc.amount(money)
             add_order_source(doc, options)
-            add_billing_address(doc, payment_method, options)
-            add_shipping_address(doc, options)
-            add_registration_id(doc, payment_method)
-            add_descriptor(doc, options)
+            add_bill_to_address(doc, payment_method, options)
+            add_ship_to_address(doc, options)
+            add_paypage(doc, payment_method)
+            add_custom_billing(doc, options)
           end
         end
 
@@ -670,10 +670,10 @@ module ActiveMerchant #:nodoc:
           build_request(:sale, money: money, options: options) do |doc|
             doc.amount(money)
             add_order_source(doc, options)
-            add_billing_address(doc, payment_method, options)
-            add_shipping_address(doc, options)
-            add_registration_id(doc, payment_method)
-            add_descriptor(doc, options)
+            add_bill_to_address(doc, payment_method, options)
+            add_ship_to_address(doc, options)
+            add_paypage(doc, payment_method)
+            add_custom_billing(doc, options)
           end
         end
 
@@ -682,9 +682,9 @@ module ActiveMerchant #:nodoc:
           build_request(:credit, money: money, options: options) do |doc|
             doc.amount(money)
             add_order_source(doc, options)
-            add_billing_address(doc, payment_method, options)
-            add_registration_id(doc, payment_method)
-            add_descriptor(doc, options)
+            add_bill_to_address(doc, payment_method, options)
+            add_paypage(doc, payment_method)
+            add_custom_billing(doc, options)
           end
         end
 
@@ -700,7 +700,7 @@ module ActiveMerchant #:nodoc:
       private
 
         # Private: Add the registration node
-        def add_registration_id(doc, payment_method)
+        def add_paypage(doc, payment_method)
           doc.paypage do
             doc.paypageRegistrationId(payment_method.id)
 
@@ -720,10 +720,10 @@ module ActiveMerchant #:nodoc:
           build_request(:authorization, money: money, options: options) do |doc|
             doc.amount(money)
             add_order_source(doc, options)
-            add_billing_address(doc, payment_method, options)
-            add_shipping_address(doc, options)
+            add_bill_to_address(doc, payment_method, options)
+            add_ship_to_address(doc, options)
             add_token(doc, payment_method)
-            add_descriptor(doc, options)
+            add_custom_billing(doc, options)
           end
         end
 
@@ -732,10 +732,10 @@ module ActiveMerchant #:nodoc:
           build_request(:sale, money: money, options: options) do |doc|
             doc.amount(money)
             add_order_source(doc, options)
-            add_billing_address(doc, payment_method, options)
-            add_shipping_address(doc, options)
+            add_bill_to_address(doc, payment_method, options)
+            add_ship_to_address(doc, options)
             add_token(doc, payment_method)
-            add_descriptor(doc, options)
+            add_custom_billing(doc, options)
           end
         end
 
@@ -744,9 +744,9 @@ module ActiveMerchant #:nodoc:
           build_request(:credit, money: money, options: options) do |doc|
             doc.amount(money)
             add_order_source(doc, options)
-            add_billing_address(doc, payment_method, options)
+            add_bill_to_address(doc, payment_method, options)
             add_token(doc, payment_method)
-            add_descriptor(doc, options)
+            add_custom_billing(doc, options)
           end
         end
 
