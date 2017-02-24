@@ -6,6 +6,12 @@ class RemoteVantivCertification < Test::Unit::TestCase
   def setup
     Base.mode = :test
     @gateway = VantivGateway.new(fixtures(:vantiv).merge(url: "https://prelive.litle.com/vap/communicator/online"))
+    @skip_non_repeatable_tests = ENV["SKIP_NON_REPEATABLE_TESTS"]
+  end
+
+  def skip_non_repeatable_tests
+    return if @skip_non_repeatable_tests
+    yield
   end
 
   ### Order Ids 1 through 9 - Authorization certification tests
@@ -831,8 +837,10 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "VI", store_response.params["type"]
 
     # Note: These assertions do not pass after the first time this test is run
-    assert_equal "801", store_response.params["response"]
-    assert_equal "Account number was successfully registered", store_response.message
+    skip_non_repeatable_tests do
+      assert_equal "801", store_response.params["response"]
+      assert_equal "Account number was successfully registered", store_response.message
+    end
   end
 
   def test51
@@ -886,8 +894,10 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "998", store_response.params["eCheckAccountSuffix"]
 
     # Note: These assertions do not pass after the first time this test is run
-    assert_equal "801", store_response.params["response"]
-    assert_equal "Account number was successfully registered", store_response.message
+    skip_non_repeatable_tests do
+      assert_equal "801", store_response.params["response"]
+      assert_equal "Account number was successfully registered", store_response.message
+    end
   end
 
   def test54
@@ -931,8 +941,10 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "543510", response.params["tokenResponse_bin"]
 
     # Note: These assertions do not pass after the first time this test is run
-    assert_equal "801", response.params["tokenResponse_tokenResponseCode"]
-    assert_equal "Account number was successfully registered", response.message
+    skip_non_repeatable_tests do
+      assert_equal "801", response.params["tokenResponse_tokenResponseCode"]
+      assert_equal "Account number was successfully registered", response.message
+    end
   end
 
   def test56
@@ -1051,11 +1063,13 @@ class RemoteVantivCertification < Test::Unit::TestCase
     response = @gateway.purchase(15000, check, options)
 
     # Note: These assertions do not pass after the first time this test is run
-    assert_not_nil response.params["tokenResponse_litleToken"]
-    assert_equal "801", response.params["tokenResponse_tokenResponseCode"]
-    assert_equal "Account number was successfully registered", response.params["tokenResponse_tokenMessage"]
-    assert_equal "EC", response.params["tokenResponse_type"]
-    assert_equal "003", response.params["tokenResponse_eCheckAccountSuffix"]
+    skip_non_repeatable_tests do
+      assert_not_nil response.params["tokenResponse_litleToken"]
+      assert_equal "801", response.params["tokenResponse_tokenResponseCode"]
+      assert_equal "Account number was successfully registered", response.params["tokenResponse_tokenMessage"]
+      assert_equal "EC", response.params["tokenResponse_type"]
+      assert_equal "003", response.params["tokenResponse_eCheckAccountSuffix"]
+    end
   end
 
   def test62
@@ -1075,11 +1089,13 @@ class RemoteVantivCertification < Test::Unit::TestCase
     response = @gateway.purchase(15000, check, options)
 
     # Note: These assertions do not pass after the first time this test is run
-    assert_not_nil response.params["tokenResponse_litleToken"]
-    assert_equal "801", response.params["tokenResponse_tokenResponseCode"]
-    assert_equal "Account number was successfully registered", response.params["tokenResponse_tokenMessage"]
-    assert_equal "EC", response.params["tokenResponse_type"]
-    assert_equal "999", response.params["tokenResponse_eCheckAccountSuffix"]
+    skip_non_repeatable_tests do
+      assert_not_nil response.params["tokenResponse_litleToken"]
+      assert_equal "801", response.params["tokenResponse_tokenResponseCode"]
+      assert_equal "Account number was successfully registered", response.params["tokenResponse_tokenMessage"]
+      assert_equal "EC", response.params["tokenResponse_type"]
+      assert_equal "999", response.params["tokenResponse_eCheckAccountSuffix"]
+    end
   end
 
   def test63
@@ -1099,11 +1115,13 @@ class RemoteVantivCertification < Test::Unit::TestCase
     response = @gateway.refund(15000, check, options)
 
     # Note: These assertions do not pass after the first time this test is run
-    assert_not_nil response.params["tokenResponse_litleToken"]
-    assert_equal "801", response.params["tokenResponse_tokenResponseCode"]
-    assert_equal "Account number was successfully registered", response.params["tokenResponse_tokenMessage"]
-    assert_equal "EC", response.params["tokenResponse_type"]
-    assert_equal "999", response.params["tokenResponse_eCheckAccountSuffix"]
+    skip_non_repeatable_tests do
+      assert_not_nil response.params["tokenResponse_litleToken"]
+      assert_equal "801", response.params["tokenResponse_tokenResponseCode"]
+      assert_equal "Account number was successfully registered", response.params["tokenResponse_tokenMessage"]
+      assert_equal "EC", response.params["tokenResponse_type"]
+      assert_equal "999", response.params["tokenResponse_eCheckAccountSuffix"]
+    end
   end
 
   ### Order Id 64
