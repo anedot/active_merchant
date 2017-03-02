@@ -583,6 +583,51 @@ module ActiveMerchant #:nodoc:
         end
       end
 
+      # Private: Request builder for `CheckToken` requests
+      class CheckTokenRequestBuilder < RequestBuilder
+        # Public: purchase
+        def purchase(money, payment_method, options = {})
+          build_request(:echeckSale, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_order_source(doc, options)
+            add_bill_to_address(doc, payment_method, options)
+            add_ship_to_address(doc, options)
+            add_echeck_token(doc, payment_method)
+            add_custom_billing(doc, options)
+          end
+        end
+
+        # Public: refund
+        def refund(money, payment_method, options = {})
+          build_request(:echeckCredit, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_order_source(doc, options)
+            add_bill_to_address(doc, payment_method, options)
+            add_echeck_token(doc, payment_method)
+            add_custom_billing(doc, options)
+          end
+        end
+
+      private
+
+        # Private: Add the `echeckToken` node
+        def add_echeck_token(doc, payment_method)
+          doc.echeckToken do
+            token = payment_method.litle_token
+            doc.litleToken(token) if token.present?
+
+            routing_number = payment_method.routing_number
+            doc.routingNum(routing_number) if routing_number.present?
+
+            account_type = payment_method.account_type
+            doc.accType(account_type) if account_type.present?
+
+            check_number = payment_method.check_number
+            doc.checkNum(check_number) if check_number.present?
+          end
+        end
+      end
+
       # Private: Request builder for `CreditCard` requests
       #
       #
@@ -842,6 +887,7 @@ module ActiveMerchant #:nodoc:
         @request_builders = {
           Authorization => AuthorizationRequestBuilder.new(self),
           Check => CheckRequestBuilder.new(self),
+          CheckToken => CheckTokenRequestBuilder.new(self),
           CreditCard => CreditCardRequestBuilder.new(self),
           NetworkTokenizationCreditCard => CreditCardRequestBuilder.new(self),
           Registration => RegistrationRequestBuilder.new(self),
