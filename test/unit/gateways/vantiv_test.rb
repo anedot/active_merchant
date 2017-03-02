@@ -66,6 +66,13 @@ class VantivTest < Test::Unit::TestCase
     )
     @check = check
 
+    @check_token = VantivGateway::CheckToken.new(
+      "4321432143214321",
+      account_type: check.account_type,
+      check_number: check.number,
+      routing_number: check.routing_number
+    )
+
     @paypage_id = "cDZJcmd1VjNlYXNaSlRMTGpocVZQY1NNlYE4ZW5UTko4NU9KK3" \
                   "p1L1p1VzE4ZWVPQVlSUHNITG1JN2I0NzlyTg="
 
@@ -286,6 +293,33 @@ class VantivTest < Test::Unit::TestCase
     assert_success capture
     assert_equal @capture_authorization, capture.authorization
     assert capture.test?
+  end
+
+  ## check token
+  def test_check_token__initialize_with_options
+    check_token = VantivGateway::CheckToken.new(
+      "9876543210",
+      account_type: VantivGateway::CHECK_TYPE["personal"]["checking"],
+      check_number: "123456789",
+      routing_number: "4141"
+    )
+
+    assert_respond_to(check_token, :metadata)
+    assert_equal "9876543210", check_token.payment_data
+    assert_equal "9876543210", check_token.litle_token
+    assert_equal "Checking", check_token.account_type
+    assert_equal "123456789", check_token.check_number
+    assert_equal "4141", check_token.routing_number
+  end
+
+  def test_check_token__initialize_without_options
+    check_token = VantivGateway::CheckToken.new("555666777")
+
+    assert_equal "555666777", check_token.payment_data
+    assert_equal "555666777", check_token.litle_token
+    assert_equal "", check_token.account_type
+    assert_equal "", check_token.check_number
+    assert_equal "", check_token.routing_number
   end
 
   ## purchase
