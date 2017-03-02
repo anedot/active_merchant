@@ -133,6 +133,53 @@ module ActiveMerchant #:nodoc:
         end
       end
 
+      # Public: Vantiv token object represents the tokenized check (eCheck)
+      # from Vantiv. Unlike other vault-like solutions, Vantiv only stores the
+      # "account number".
+      #
+      # Example:
+      #   check_token = ActiveMerchant::Billing::VantivGateway::CheckToken.new(
+      #     "1234567890",
+      #     account_type: VantivGateway::CHECK_TYPE["personal"]["checking"],
+      #     check_number: "1001",
+      #     routing_number: "4141"
+      #   )
+      #
+      # This is based on `PaymentToken` so all options are stored in the
+      # metadata attribute.
+      class CheckToken < PaymentToken
+        attr_reader :metadata
+
+        alias litle_token payment_data
+
+        # Private: Override initialize to specify required and optional params
+        #
+        # Keyword args makes it easier for callers to see what's expected.
+        def initialize(token,
+                       account_type: "",
+                       check_number: "",
+                       routing_number: "")
+          super(
+            token,
+            account_type: account_type,
+            check_number: check_number,
+            routing_number: routing_number
+          )
+        end
+
+        def account_type
+          metadata.fetch("account_type", "")
+        end
+
+        def check_number
+          metadata.fetch("check_number", "")
+        end
+
+        def routing_number
+          metadata.fetch("routing_number", "")
+        end
+      end
+
       # Public: Vantiv eProtect registration object represents the values
       # returned from Vantiv as part of an eProtect request.
       #
