@@ -632,6 +632,35 @@ class VantivTest < Test::Unit::TestCase
     assert_success refund
   end
 
+  def test_refund__check_request
+    stub_commit do |_, data, _|
+      assert_match %r(<echeckCredit .*</echeckCredit>)m, data
+      assert_match %r(<orderId>this-must-be-truncated--</orderId>), data
+      assert_match %r(<amount>#{@amount}</amount>), data
+      assert_match %r(<orderSource>ecommerce</orderSource>), data
+      # address nodes
+      assert_match %r(<billToAddress>.*</billToAddress>)m, data
+      assert_match %r(<name>Jim Smith</name>), data
+      assert_match %r(<firstName>Jim</firstName>), data
+      assert_match %r(<lastName>Smith</lastName>), data
+      # echeck nodes
+      assert_match %r(<echeck>.*</echeck>)m, data
+      assert_match %r(<accType>Checking</accType>), data
+      assert_match %r(<accNum>15378535</accNum>), data
+      assert_match %r(<routingNum>244183602</routingNum>), data
+      # optional
+      assert_match %r(<checkNum>1</checkNum>), data
+      # nodes that shouldn't be present by default
+      assert_no_match %r(<customBilling>), data
+    end
+
+    @gateway.refund(
+      @amount,
+      @check,
+      order_id: "this-must-be-truncated--to-24-chars"
+    )
+  end
+
   def test_refund__credit_card_request
     stub_commit do |_, data, _|
       assert_match %r(<credit .*</credit>)m, data
