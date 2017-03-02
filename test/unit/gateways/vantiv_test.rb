@@ -405,6 +405,31 @@ class VantivTest < Test::Unit::TestCase
     assert response.test?
   end
 
+  def test_purchase__check_token_request
+    stub_commit do |_, data, _|
+      assert_match %r(<echeckSale .*</echeckSale>)m, data
+      assert_match %r(<orderId>this-must-be-truncated--</orderId>), data
+      assert_match %r(<amount>#{@amount}</amount>), data
+      assert_match %r(<orderSource>ecommerce</orderSource>), data
+      # token nodes
+      assert_match %r(<echeckToken>.*</echeckToken>)m, data
+      assert_match %r(<litleToken>4321432143214321</litleToken>), data
+      assert_match %r(<routingNum>244183602</routingNum>), data
+      assert_match %r(<accType>checking</accType>), data
+      assert_match %r(<checkNum>1</checkNum>), data
+      # nodes that shouldn't be present by default
+      assert_no_match %r(<billToAddress>)m, data
+      assert_no_match %r(<shipToAddress>), data
+      assert_no_match %r(<customBilling>), data
+    end
+
+    @gateway.purchase(
+      @amount,
+      @check_token,
+      order_id: "this-must-be-truncated--to-24-chars"
+    )
+  end
+
   def test_purchase__credit_card_request
     stub_commit do |_, data, _|
       assert_match %r(<sale .*</sale>)m, data
@@ -657,6 +682,30 @@ class VantivTest < Test::Unit::TestCase
     @gateway.refund(
       @amount,
       @check,
+      order_id: "this-must-be-truncated--to-24-chars"
+    )
+  end
+
+  def test_refund__check_token_request
+    stub_commit do |_, data, _|
+      assert_match %r(<echeckCredit .*</echeckCredit>)m, data
+      assert_match %r(<orderId>this-must-be-truncated--</orderId>), data
+      assert_match %r(<amount>#{@amount}</amount>), data
+      assert_match %r(<orderSource>ecommerce</orderSource>), data
+      # echeck token nodes
+      assert_match %r(<echeckToken>.*</echeckToken>)m, data
+      assert_match %r(<litleToken>4321432143214321</litleToken>), data
+      assert_match %r(<routingNum>244183602</routingNum>), data
+      assert_match %r(<accType>checking</accType>), data
+      assert_match %r(<checkNum>1</checkNum>), data
+      # nodes that shouldn't be present by default
+      assert_no_match %r(<billToAddress>), data
+      assert_no_match %r(<customBilling>), data
+    end
+
+    @gateway.refund(
+      @amount,
+      @check_token,
       order_id: "this-must-be-truncated--to-24-chars"
     )
   end
