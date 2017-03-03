@@ -180,6 +180,50 @@ module ActiveMerchant #:nodoc:
         end
       end
 
+      # Public: Vantiv token object represents the tokenized credit card number
+      # from Vantiv. Unlike other vault-like solutions, Vantiv only stores the
+      # "account number".
+      #
+      # Example:
+      #   token = ActiveMerchant::Billing::VantivGateway::CreditCardToken.new(
+      #     "1234567890",
+      #     month: "9",
+      #     verification_value: "424",
+      #     year: "2021"
+      #   )
+      #
+      # This is based on `PaymentToken` so all options are stored in the
+      # metadata attribute.
+      class CreditCardToken < PaymentToken
+        attr_reader :metadata
+
+        alias litle_token payment_data
+
+        # Private: Override initialize to specify required and optional params
+        #
+        # Keyword args makes it easier for callers to see what's expected.
+        def initialize(token, month: "", verification_value: "", year: "")
+          super(
+            token,
+            month: month,
+            verification_value: verification_value,
+            year: year
+          )
+        end
+
+        def month
+          metadata.fetch("month", "")
+        end
+
+        def verification_value
+          metadata.fetch("verification_value", "")
+        end
+
+        def year
+          metadata.fetch("year", "")
+        end
+      end
+
       # Public: Vantiv eProtect registration object represents the values
       # returned from Vantiv as part of an eProtect request.
       #
@@ -214,50 +258,6 @@ module ActiveMerchant #:nodoc:
           @response = response
           @txn = txn
           @xml = xml
-        end
-      end
-
-      # Public: Vantiv token object represents the tokenized credit card number
-      # from Vantiv. Unlike other vault-like solutions, Vantiv only stores the
-      # "account number".
-      #
-      # Example:
-      #   token = ActiveMerchant::Billing::VantivGateway::Token.new(
-      #     "1234567890",
-      #     month: "9",
-      #     verification_value: "424",
-      #     year: "2021"
-      #   )
-      #
-      # This is based on `PaymentToken` so all options are stored in the
-      # metadata attribute.
-      class Token < PaymentToken
-        attr_reader :metadata
-
-        alias litle_token payment_data
-
-        # Private: Override initialize to specify required and optional params
-        #
-        # Keyword args makes it easier for callers to see what's expected.
-        def initialize(token, month: "", verification_value: "", year: "")
-          super(
-            token,
-            month: month,
-            verification_value: verification_value,
-            year: year
-          )
-        end
-
-        def month
-          metadata.fetch("month", "")
-        end
-
-        def verification_value
-          metadata.fetch("verification_value", "")
-        end
-
-        def year
-          metadata.fetch("year", "")
         end
       end
 
@@ -754,6 +754,60 @@ module ActiveMerchant #:nodoc:
         end
       end
 
+      # Private: Request builder for `CreditCardToken` requests
+      class CreditCardTokenRequestBuilder < RequestBuilder
+        # Public: authorize
+        def authorize(money, payment_method, options = {})
+          build_request(:authorization, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_order_source(doc, options)
+            add_bill_to_address(doc, payment_method, options)
+            add_ship_to_address(doc, options)
+            add_token(doc, payment_method)
+            add_custom_billing(doc, options)
+          end
+        end
+
+        # Public: purchase
+        def purchase(money, payment_method, options = {})
+          build_request(:sale, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_order_source(doc, options)
+            add_bill_to_address(doc, payment_method, options)
+            add_ship_to_address(doc, options)
+            add_token(doc, payment_method)
+            add_custom_billing(doc, options)
+          end
+        end
+
+        # Public: refund
+        def refund(money, payment_method, options = {})
+          build_request(:credit, money: money, options: options) do |doc|
+            doc.amount(money)
+            add_order_source(doc, options)
+            add_bill_to_address(doc, payment_method, options)
+            add_token(doc, payment_method)
+            add_custom_billing(doc, options)
+          end
+        end
+
+      private
+
+        # Private: Add the `token` node
+        def add_token(doc, payment_method)
+          doc.token do
+            token = payment_method.litle_token
+            doc.litleToken(token) if token.present?
+
+            expiration = exp_date(payment_method)
+            doc.expDate(expiration) if expiration.present?
+
+            cvv = payment_method.verification_value
+            doc.cardValidationNum(cvv) if cvv.present?
+          end
+        end
+      end
+
       # Private: Request builder for `Registration` requests
       #
       # Implements supported *actions* for this type of request
@@ -818,60 +872,6 @@ module ActiveMerchant #:nodoc:
         end
       end
 
-      # Private: Request builder for `Token` requests
-      class TokenRequestBuilder < RequestBuilder
-        # Public: authorize
-        def authorize(money, payment_method, options = {})
-          build_request(:authorization, money: money, options: options) do |doc|
-            doc.amount(money)
-            add_order_source(doc, options)
-            add_bill_to_address(doc, payment_method, options)
-            add_ship_to_address(doc, options)
-            add_token(doc, payment_method)
-            add_custom_billing(doc, options)
-          end
-        end
-
-        # Public: purchase
-        def purchase(money, payment_method, options = {})
-          build_request(:sale, money: money, options: options) do |doc|
-            doc.amount(money)
-            add_order_source(doc, options)
-            add_bill_to_address(doc, payment_method, options)
-            add_ship_to_address(doc, options)
-            add_token(doc, payment_method)
-            add_custom_billing(doc, options)
-          end
-        end
-
-        # Public: refund
-        def refund(money, payment_method, options = {})
-          build_request(:credit, money: money, options: options) do |doc|
-            doc.amount(money)
-            add_order_source(doc, options)
-            add_bill_to_address(doc, payment_method, options)
-            add_token(doc, payment_method)
-            add_custom_billing(doc, options)
-          end
-        end
-
-      private
-
-        # Private: Add the `token` node
-        def add_token(doc, payment_method)
-          doc.token do
-            token = payment_method.litle_token
-            doc.litleToken(token) if token.present?
-
-            expiration = exp_date(payment_method)
-            doc.expDate(expiration) if expiration.present?
-
-            cvv = payment_method.verification_value
-            doc.cardValidationNum(cvv) if cvv.present?
-          end
-        end
-      end
-
       # Public: Create a new Vantiv gateway.
       #
       # options - A hash of options:
@@ -889,9 +889,9 @@ module ActiveMerchant #:nodoc:
           Check => CheckRequestBuilder.new(self),
           CheckToken => CheckTokenRequestBuilder.new(self),
           CreditCard => CreditCardRequestBuilder.new(self),
+          CreditCardToken => CreditCardTokenRequestBuilder.new(self),
           NetworkTokenizationCreditCard => CreditCardRequestBuilder.new(self),
-          Registration => RegistrationRequestBuilder.new(self),
-          Token => TokenRequestBuilder.new(self)
+          Registration => RegistrationRequestBuilder.new(self)
         }
       end
 
