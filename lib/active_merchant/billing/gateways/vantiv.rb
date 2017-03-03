@@ -587,7 +587,10 @@ module ActiveMerchant #:nodoc:
       class CheckTokenRequestBuilder < RequestBuilder
         # Public: purchase
         def purchase(money, payment_method, options = {})
-          build_request(:echeckSale, money: money, options: options) do |doc|
+          build_request(:echeckSale,
+                        response: :echeckSales,
+                        money: money,
+                        options: options) do |doc|
             doc.amount(money)
             add_order_source(doc, options)
             add_bill_to_address(doc, payment_method, options)
