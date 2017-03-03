@@ -993,7 +993,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     assert_equal "MC", response.params["tokenResponse_type"]
     assert_equal "543510", response.params["tokenResponse_bin"]
 
-    token = VantivGateway::Token.new(
+    token = VantivGateway::CreditCardToken.new(
       response.params["tokenResponse_litleToken"],
       month: credit_card.month,
       verification_value: credit_card.verification_value,
@@ -1012,7 +1012,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
   end
 
   def test59
-    token = VantivGateway::Token.new(
+    token = VantivGateway::CreditCardToken.new(
       "1111000100092332",
       month: "11",
       year: "2021"
@@ -1029,7 +1029,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
   end
 
   def test60
-    token = VantivGateway::Token.new(
+    token = VantivGateway::CreditCardToken.new(
       "1112000100000085",
       month: "11",
       year: "2021"
