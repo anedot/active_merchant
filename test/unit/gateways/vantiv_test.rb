@@ -3,6 +3,12 @@ require "test_helper"
 class VantivTest < Test::Unit::TestCase
   include CommStub
 
+  TEST_GATEWAY = VantivGateway.new(
+    login: "login",
+    password: "password",
+    merchant_id: "merchant_id"
+  )
+
   def setup
     Base.mode = :test
 
@@ -219,6 +225,25 @@ class VantivTest < Test::Unit::TestCase
       assert_equal "response", request.response
       assert_equal "txn", request.txn
       assert_equal "xml", request.xml
+    end
+  end
+
+  class RequestBuilderTest < Test::Unit::TestCase
+    def test_request_builder
+      builder = VantivGateway::RequestBuilder.new(TEST_GATEWAY)
+
+      assert_equal builder.gateway, TEST_GATEWAY
+      assert_respond_to builder, :authorize
+      assert_respond_to builder, :capture
+      assert_respond_to builder, :credit
+      assert_respond_to builder, :purchase
+      assert_respond_to builder, :refund
+      assert_respond_to builder, :store
+      assert_respond_to builder, :void
+
+      assert_raise NotImplementedError do
+        builder.authorize(nil)
+      end
     end
   end
 
