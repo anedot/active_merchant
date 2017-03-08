@@ -181,6 +181,31 @@ class VantivTest < Test::Unit::TestCase
     end
   end
 
+  class RegistrationTest < Test::Unit::TestCase
+    def test_registration
+      reg = VantivGateway::Registration.new(
+        "12345-12345",
+        month: "06",
+        verification_value: "776",
+        year: "2021"
+      )
+
+      assert_equal "12345-12345", reg.id
+      assert_equal "06", reg.month
+      assert_equal "776", reg.verification_value
+      assert_equal "2021", reg.year
+    end
+
+    def test_registration_defaults
+      reg = VantivGateway::Registration.new("444-888")
+
+      assert_equal "444-888", reg.id
+      assert_equal "", reg.month
+      assert_equal "", reg.verification_value
+      assert_equal "", reg.year
+    end
+  end
+
   ## authorize
   def test_authorize__credit_card_failed
     response = stub_comms do
@@ -921,30 +946,6 @@ class VantivTest < Test::Unit::TestCase
       descriptor_name: "descriptor-name",
       descriptor_phone: "descriptor-phone"
     )
-  end
-
-  ## registration
-  def test_registration__initialize_with_options
-    reg = VantivGateway::Registration.new(
-      "12345-12345",
-      month: "06",
-      verification_value: "776",
-      year: "2021"
-    )
-
-    assert_equal "12345-12345", reg.id
-    assert_equal "06", reg.month
-    assert_equal "776", reg.verification_value
-    assert_equal "2021", reg.year
-  end
-
-  def test_registration__initialize_without_options
-    reg = VantivGateway::Registration.new("444-888")
-
-    assert_equal "444-888", reg.id
-    assert_equal "", reg.month
-    assert_equal "", reg.verification_value
-    assert_equal "", reg.year
   end
 
   ## scrubbing
