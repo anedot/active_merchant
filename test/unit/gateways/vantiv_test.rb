@@ -911,6 +911,18 @@ class VantivTest < Test::Unit::TestCase
   end
 
   ## store
+  def test_store__check_request
+    stub_commit do |_, data, _|
+      assert_match %r(<registerTokenRequest .*</registerTokenRequest>)m, data
+      assert_match %r(<accNum>15378535</accNum>), data
+      assert_match %r(<routingNum>244183602</routingNum>), data
+      # nodes that shouldn't be present by default
+      assert_no_match %r(<orderId>), data
+    end
+
+    @gateway.store(@check)
+  end
+
   def test_store__credit_card_failed
     response = stub_comms do
       @gateway.store(@credit_card)
