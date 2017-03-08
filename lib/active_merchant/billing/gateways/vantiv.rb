@@ -401,8 +401,8 @@ module ActiveMerchant #:nodoc:
 
         attr_reader :gateway
 
-        def initialize(gateway)
-          @gateway = gateway
+        def initialize(gateway_instance)
+          @gateway = gateway_instance
           # shim so it works with modules
           @options = gateway_options
         end
