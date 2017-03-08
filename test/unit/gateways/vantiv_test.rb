@@ -83,7 +83,7 @@ class VantivTest < Test::Unit::TestCase
       year: "2020"
     )
 
-    @token = VantivGateway::CreditCardToken.new(
+    @credit_card_token = VantivGateway::CreditCardToken.new(
       "1234123412341234",
       month: "01",
       verification_value: "098",
@@ -206,7 +206,7 @@ class VantivTest < Test::Unit::TestCase
 
     @gateway.authorize(
       @amount,
-      @token,
+      @credit_card_token,
       order_id: "this-must-be-truncated--to-24-chars"
     )
   end
@@ -587,7 +587,7 @@ class VantivTest < Test::Unit::TestCase
 
     @gateway.purchase(
       @amount,
-      @token,
+      @credit_card_token,
       order_id: "this-must-be-truncated--to-24-chars"
     )
   end
@@ -804,7 +804,7 @@ class VantivTest < Test::Unit::TestCase
 
     @gateway.refund(
       @amount,
-      @token,
+      @credit_card_token,
       order_id: "this-must-be-truncated--to-24-chars"
     )
   end
@@ -871,7 +871,7 @@ class VantivTest < Test::Unit::TestCase
 
     @gateway.refund(
       @amount,
-      @token,
+      @credit_card_token,
       descriptor_name: "descriptor-name",
       descriptor_phone: "descriptor-phone"
     )
