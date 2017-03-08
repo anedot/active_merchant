@@ -94,6 +94,37 @@ class VantivTest < Test::Unit::TestCase
     @options = {}
   end
 
+  class AuthorizationTest < Test::Unit::TestCase
+    def test_authorization
+      authorization = VantivGateway::Authorization.new(
+        "9876543210",
+        amount: 125,
+        txn_type: :credit
+      )
+
+      assert_equal "9876543210", authorization.litle_txn_id
+      assert_equal 125, authorization.amount
+      assert_equal :credit, authorization.txn_type
+    end
+
+    def test_authorization_defaults
+      authorization = VantivGateway::Authorization.new("555666777")
+
+      assert_equal "555666777", authorization.litle_txn_id
+      assert_equal nil, authorization.amount
+      assert_equal nil, authorization.txn_type
+    end
+
+    def test_authorzation_equality
+      authorization1 = VantivGateway::Authorization.new("match", amount: 100)
+      authorization2 = VantivGateway::Authorization.new("match", amount: 100)
+      authorization3 = VantivGateway::Authorization.new("nomatch", amount: 100)
+
+      assert authorization1 == authorization2
+      assert authorization1 != authorization3
+    end
+  end
+
   ## authorize
   def test_authorize__credit_card_failed
     response = stub_comms do
