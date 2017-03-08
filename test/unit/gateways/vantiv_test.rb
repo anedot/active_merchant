@@ -911,6 +911,12 @@ class VantivTest < Test::Unit::TestCase
   end
 
   ## store
+  def test_store__authorization_unsupported
+    assert_raise NotImplementedError do
+      @gateway.store(@authorize_authorization)
+    end
+  end
+
   def test_store__check_request
     stub_commit do |_, data, _|
       assert_match %r(<registerTokenRequest .*</registerTokenRequest>)m, data

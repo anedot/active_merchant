@@ -419,8 +419,8 @@ module ActiveMerchant #:nodoc:
           :store,
           :void
         ].each do |action|
-          define_method(action) do
-            _not_supported
+          define_method(action) do |*|
+            fail NotImplementedError, "gateway action not supported"
           end
         end
 
@@ -447,11 +447,6 @@ module ActiveMerchant #:nodoc:
         # Private: Helper method to access the gateway options
         def gateway_options
           gateway.instance_variable_get("@options") || {}
-        end
-
-        # Private: Helper method to raise an exception for an unsupported action
-        def not_supported
-          fail NotImplementedError, "gateway action not supported"
         end
 
         ## Private: Shim helper methods from the `gateway`
