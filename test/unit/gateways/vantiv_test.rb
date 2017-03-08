@@ -153,6 +153,34 @@ class VantivTest < Test::Unit::TestCase
     end
   end
 
+  class CreditCardTokenTest < Test::Unit::TestCase
+    def test_credit_card_token
+      token = VantivGateway::CreditCardToken.new(
+        "987654321",
+        month: "01",
+        verification_value: "098",
+        year: "2020"
+      )
+
+      assert_respond_to(token, :metadata)
+      assert_equal "987654321", token.payment_data
+      assert_equal "987654321", token.litle_token
+      assert_equal "01", token.month
+      assert_equal "098", token.verification_value
+      assert_equal "2020", token.year
+    end
+
+    def test_credit_card_token_defaults
+      token = VantivGateway::CreditCardToken.new("555666777")
+
+      assert_equal "555666777", token.payment_data
+      assert_equal "555666777", token.litle_token
+      assert_equal "", token.month
+      assert_equal "", token.verification_value
+      assert_equal "", token.year
+    end
+  end
+
   ## authorize
   def test_authorize__credit_card_failed
     response = stub_comms do
@@ -365,33 +393,6 @@ class VantivTest < Test::Unit::TestCase
     @gateway.expects(:refund)
 
     @gateway.credit(@amount, @authorize_authorization)
-  end
-
-  ## credit card token
-  def test_credit_card_token__initialize_with_options
-    token = VantivGateway::CreditCardToken.new(
-      "987654321",
-      month: "01",
-      verification_value: "098",
-      year: "2020"
-    )
-
-    assert_respond_to(token, :metadata)
-    assert_equal "987654321", token.payment_data
-    assert_equal "987654321", token.litle_token
-    assert_equal "01", token.month
-    assert_equal "098", token.verification_value
-    assert_equal "2020", token.year
-  end
-
-  def test_credit_card_token__initialize_without_options
-    token = VantivGateway::CreditCardToken.new("555666777")
-
-    assert_equal "555666777", token.payment_data
-    assert_equal "555666777", token.litle_token
-    assert_equal "", token.month
-    assert_equal "", token.verification_value
-    assert_equal "", token.year
   end
 
   ## purchase
