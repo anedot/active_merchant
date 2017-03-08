@@ -206,6 +206,22 @@ class VantivTest < Test::Unit::TestCase
     end
   end
 
+  class RequestTest < Test::Unit::TestCase
+    def test_request
+      request = VantivGateway::Request.new(
+        money: 100,
+        response: "response",
+        txn: "txn",
+        xml: "xml"
+      )
+
+      assert_equal 100, request.money
+      assert_equal "response", request.response
+      assert_equal "txn", request.txn
+      assert_equal "xml", request.xml
+    end
+  end
+
   ## authorize
   def test_authorize__credit_card_failed
     response = stub_comms do
