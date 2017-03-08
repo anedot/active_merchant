@@ -125,6 +125,34 @@ class VantivTest < Test::Unit::TestCase
     end
   end
 
+  class CheckTokenTest < Test::Unit::TestCase
+    def test_check_token
+      check_token = VantivGateway::CheckToken.new(
+        "9876543210",
+        account_type: VantivGateway::CHECK_TYPE["personal"]["checking"],
+        check_number: "123456789",
+        routing_number: "4141"
+      )
+
+      assert_respond_to(check_token, :metadata)
+      assert_equal "9876543210", check_token.payment_data
+      assert_equal "9876543210", check_token.litle_token
+      assert_equal "Checking", check_token.account_type
+      assert_equal "123456789", check_token.check_number
+      assert_equal "4141", check_token.routing_number
+    end
+
+    def test_check_token_defaults
+      check_token = VantivGateway::CheckToken.new("555666777")
+
+      assert_equal "555666777", check_token.payment_data
+      assert_equal "555666777", check_token.litle_token
+      assert_equal "", check_token.account_type
+      assert_equal "", check_token.check_number
+      assert_equal "", check_token.routing_number
+    end
+  end
+
   ## authorize
   def test_authorize__credit_card_failed
     response = stub_comms do
@@ -324,33 +352,6 @@ class VantivTest < Test::Unit::TestCase
     assert_success capture
     assert_equal @capture_authorization, capture.authorization
     assert capture.test?
-  end
-
-  ## check token
-  def test_check_token__initialize_with_options
-    check_token = VantivGateway::CheckToken.new(
-      "9876543210",
-      account_type: VantivGateway::CHECK_TYPE["personal"]["checking"],
-      check_number: "123456789",
-      routing_number: "4141"
-    )
-
-    assert_respond_to(check_token, :metadata)
-    assert_equal "9876543210", check_token.payment_data
-    assert_equal "9876543210", check_token.litle_token
-    assert_equal "Checking", check_token.account_type
-    assert_equal "123456789", check_token.check_number
-    assert_equal "4141", check_token.routing_number
-  end
-
-  def test_check_token__initialize_without_options
-    check_token = VantivGateway::CheckToken.new("555666777")
-
-    assert_equal "555666777", check_token.payment_data
-    assert_equal "555666777", check_token.litle_token
-    assert_equal "", check_token.account_type
-    assert_equal "", check_token.check_number
-    assert_equal "", check_token.routing_number
   end
 
   ## credit
