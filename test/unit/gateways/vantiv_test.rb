@@ -1096,6 +1096,17 @@ class VantivTest < Test::Unit::TestCase
     @gateway.void(@purchase_authorization, amount: "150")
   end
 
+  def test_void__purchase_check_authorization_request
+    stub_commit do |_, data, _|
+      assert_match %r(<echeckVoid .*</echeckVoid>)m, data
+      assert_match %r(<litleTxnId>84568456</litleTxnId>), data
+      # amount is not included for standard void transactions
+      assert_no_match %r(<amount>), data
+    end
+
+    @gateway.void(@purchase_echeck_authorization, amount: "100")
+  end
+
   def test_void__refund_authorization_failed
     response = stub_comms do
       @gateway.void(@refund_authorization)
