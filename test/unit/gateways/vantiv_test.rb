@@ -100,7 +100,7 @@ class VantivTest < Test::Unit::TestCase
     @options = {}
   end
 
-  class AuthorizationTest < Test::Unit::TestCase
+  class AuthorizationTest < self
     def test_authorization
       authorization = VantivGateway::Authorization.new(
         "9876543210",
@@ -131,7 +131,7 @@ class VantivTest < Test::Unit::TestCase
     end
   end
 
-  class CheckTokenTest < Test::Unit::TestCase
+  class CheckTokenTest < self
     def test_check_token
       check_token = VantivGateway::CheckToken.new(
         "9876543210",
@@ -159,7 +159,7 @@ class VantivTest < Test::Unit::TestCase
     end
   end
 
-  class CreditCardTokenTest < Test::Unit::TestCase
+  class CreditCardTokenTest < self
     def test_credit_card_token
       token = VantivGateway::CreditCardToken.new(
         "987654321",
@@ -187,7 +187,7 @@ class VantivTest < Test::Unit::TestCase
     end
   end
 
-  class RegistrationTest < Test::Unit::TestCase
+  class RegistrationTest < self
     def test_registration
       reg = VantivGateway::Registration.new(
         "12345-12345",
@@ -212,7 +212,7 @@ class VantivTest < Test::Unit::TestCase
     end
   end
 
-  class RequestTest < Test::Unit::TestCase
+  class RequestTest < self
     def test_request
       request = VantivGateway::Request.new(
         money: 100,
@@ -228,11 +228,11 @@ class VantivTest < Test::Unit::TestCase
     end
   end
 
-  class RequestBuilderTest < Test::Unit::TestCase
+  class RequestBuilderTest < self
     def test_request_builder
-      builder = VantivGateway::RequestBuilder.new(TEST_GATEWAY)
+      builder = VantivGateway::RequestBuilder.new(@gateway)
 
-      assert_equal builder.gateway, TEST_GATEWAY
+      assert_equal builder.gateway, @gateway
       assert_respond_to builder, :authorize
       assert_respond_to builder, :capture
       assert_respond_to builder, :credit
