@@ -322,6 +322,19 @@ class VantivTest < Test::Unit::TestCase
     assert_equal "", check_token.routing_number
   end
 
+  ## credit
+  def test_credit__deprecated
+    # warn of deprecation
+    ActiveMerchant
+      .expects(:deprecated)
+      .with(VantivGateway::CREDIT_DEPRECATION_MESSAGE)
+
+    # delegate to the #refund action
+    @gateway.expects(:refund)
+
+    @gateway.credit(@amount, @authorize_authorization)
+  end
+
   ## credit card token
   def test_credit_card_token__initialize_with_options
     token = VantivGateway::CreditCardToken.new(
