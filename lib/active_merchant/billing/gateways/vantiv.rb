@@ -902,7 +902,7 @@ module ActiveMerchant #:nodoc:
           options
         )
 
-        submit_request(request)
+        submit_request(request, options)
       end
 
       # Public: Capture the referenced authorization transaction to transfer
@@ -914,7 +914,7 @@ module ActiveMerchant #:nodoc:
           options
         )
 
-        submit_request(request)
+        submit_request(request, options)
       end
 
       # [DEPRECATED] Public: Refund money to a customer.
@@ -934,7 +934,7 @@ module ActiveMerchant #:nodoc:
           options
         )
 
-        submit_request(request)
+        submit_request(request, options)
       end
 
       # Public: Refund money to a customer.
@@ -964,7 +964,7 @@ module ActiveMerchant #:nodoc:
           options
         )
 
-        submit_request(request)
+        submit_request(request, options)
       end
 
       # Public: Indicates if this gateway supports scrubbing.
@@ -1007,7 +1007,7 @@ module ActiveMerchant #:nodoc:
           options
         )
 
-        submit_request(request)
+        submit_request(request, options)
       end
 
     private
@@ -1026,8 +1026,8 @@ module ActiveMerchant #:nodoc:
       end
 
       # Private: Commit request data to Vantiv gateway and return a `Response`
-      def commit(kind, request, money = nil)
-        parsed = parse(kind, ssl_post(url, request, DEFAULT_HEADERS))
+      def commit(kind, request, money = nil, options = {})
+        parsed = parse(kind, ssl_post(url, request, headers(options)))
 
         options = {
           authorization: authorization_from(kind, parsed, money),
@@ -1044,6 +1044,14 @@ module ActiveMerchant #:nodoc:
           parsed,
           options
         )
+      end
+
+      def headers(options)
+        if options[:headers].present?
+          DEFAULT_HEADERS.merge(options[:headers])
+        else
+          DEFAULT_HEADERS
+        end
       end
 
       # Private: Parse the response from the Vantiv gateway into a Hash
@@ -1080,8 +1088,8 @@ module ActiveMerchant #:nodoc:
       end
 
       # Private: Submit a `Request` to Vantiv gateway via the `commit` method
-      def submit_request(request)
-        commit(request.response, request.xml, request.money)
+      def submit_request(request, options = {})
+        commit(request.response, request.xml, request.money, options)
       end
 
       # Private: Determine if the response was a success
