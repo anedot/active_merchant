@@ -1261,6 +1261,31 @@ class VantivTest < Test::Unit::TestCase
       @gateway.purchase(@amount, @credit_card)
     end
 
+    def test_request_headers
+      default_headers = VantivGateway::DEFAULT_HEADERS
+
+      stub_comms do
+        @gateway.purchase(@amount, @credit_card)
+      end.check_request do |url, data, headers|
+        assert_equal default_headers, headers
+      end.respond_with(_response_purchase__credit_card_successful)
+
+      extra_headers = {
+        "TX_APIKey" => "zxcvbnm",
+        "TX_URL" => "https://example.com"
+      }
+
+      stub_comms do
+        @gateway.purchase(
+          @amount,
+          @credit_card,
+          headers: extra_headers
+        )
+      end.check_request do |url, data, headers|
+        assert_equal default_headers.merge(extra_headers), headers
+      end.respond_with(_response_purchase__credit_card_successful)
+    end
+
     def test_request_with_authentication
       stub_commit do |_, data, |
         assert_match %r(<authentication>.*</authentication>)m, data
