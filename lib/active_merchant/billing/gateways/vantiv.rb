@@ -9,8 +9,9 @@ module ActiveMerchant #:nodoc:
     # in 2012. The URLs and the XML format (LitleXML) still reference the old
     # name.
     class VantivGateway < Gateway
-      self.test_url = "https://www.testlitle.com/sandbox/communicator/online"
-      self.live_url = "https://payments.litle.com/vap/communicator/online"
+      self.test_url =
+        "https://www.testvantivcnp.com/sandbox/new/sandbox/communicator/online"
+      self.live_url = "https://payments.vantivcnp.com/vap/communicator/online"
 
       self.supported_countries = ["US"]
       self.default_currency = "USD"
