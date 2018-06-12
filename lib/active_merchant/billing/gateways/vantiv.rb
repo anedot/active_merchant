@@ -10,7 +10,7 @@ module ActiveMerchant #:nodoc:
     # name.
     class VantivGateway < Gateway
       self.test_url =
-        "https://www.testvantivcnp.com/sandbox/new/sandbox/communicator/online"
+        "https://payments.vantivprelive.com/vap/communicator/online"
       self.live_url = "https://payments.vantivcnp.com/vap/communicator/online"
 
       self.supported_countries = ["US"]
