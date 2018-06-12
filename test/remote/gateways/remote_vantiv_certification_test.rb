@@ -5,11 +5,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
 
   def setup
     Base.mode = :test
-    @gateway = VantivGateway.new(
-      fixtures(:vantiv).merge(
-        url: "https://payments.vantivprelive.com/vap/communicator/online"
-      )
-    )
+    @gateway = VantivGateway.new(fixtures(:vantiv))
     @skip_non_repeatable_tests = ENV["SKIP_NON_REPEATABLE_TESTS"]
   end
 
