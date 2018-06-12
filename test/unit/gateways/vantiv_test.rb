@@ -55,6 +55,7 @@ class VantivTest < Test::Unit::TestCase
     )
 
     @credit_card = credit_card
+    @credit_card_exp_date = "09#{@credit_card.year.to_s.slice(-2..-1)}"
     @apple_pay = NetworkTokenizationCreditCard.new(
       {
         month: "01",
@@ -503,7 +504,7 @@ class VantivTest < Test::Unit::TestCase
         assert_match %r(<card>.*</card>)m, data
         assert_match %r(<type>VI</type>), data
         assert_match %r(<number>4242424242424242</number>), data
-        assert_match %r(<expDate>0918</expDate>), data
+        assert_match %r(<expDate>#{@credit_card_exp_date}</expDate>), data
         assert_match %r(<cardValidationNum>123</cardValidationNum>), data
         # nodes that shouldn't be present by default
         assert_no_match %r(<shipToAddress>), data
@@ -583,7 +584,7 @@ class VantivTest < Test::Unit::TestCase
         assert_match %r(<card>.*</card>)m, data
         assert_match %r(<type>VI</type>), data
         assert_match %r(<number>4242424242424242</number>), data
-        assert_match %r(<expDate>0918</expDate>), data
+        assert_match %r(<expDate>#{@credit_card_exp_date}</expDate>), data
         assert_match %r(<cardValidationNum>123</cardValidationNum>), data
         # nodes that shouldn't be present by default
         assert_no_match %r(<shipToAddress>), data
@@ -702,7 +703,7 @@ class VantivTest < Test::Unit::TestCase
         assert_match %r(<card>.*</card>)m, data
         assert_match %r(<type>VI</type>), data
         assert_match %r(<number>4242424242424242</number>), data
-        assert_match %r(<expDate>0918</expDate>), data
+        assert_match %r(<expDate>#{@credit_card_exp_date}</expDate>), data
         assert_match %r(<cardValidationNum>123</cardValidationNum>), data
         # nodes that shouldn't be present by default
         assert_no_match %r(<customBilling>), data
