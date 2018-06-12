@@ -5,7 +5,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
 
   def setup
     Base.mode = :test
-    @gateway = VantivGateway.new(fixtures(:vantiv).merge(url: "https://prelive.litle.com/vap/communicator/online"))
+    @gateway = VantivGateway.new(fixtures(:vantiv))
     @skip_non_repeatable_tests = ENV["SKIP_NON_REPEATABLE_TESTS"]
   end
 
@@ -246,7 +246,7 @@ class RemoteVantivCertification < Test::Unit::TestCase
     response = @gateway.void(response.authorization, {order_id: "6A"})
 
     assert_equal "360", response.params["response"]
-    assert_equal "No transaction found with specified litleTxnId", response.message
+    assert_equal "No transaction found with specified transaction Id", response.message
   end
 
   def test7
@@ -812,13 +812,13 @@ class RemoteVantivCertification < Test::Unit::TestCase
     credit_response = @gateway.refund(nil, authorization, options)
 
     assert_equal "360", credit_response.params["response"]
-    assert_equal "No transaction found with specified litleTxnId", credit_response.params["message"]
+    assert_equal "No transaction found with specified transaction Id", credit_response.params["message"]
 
     # eCheck Void transaction test
     void_response = @gateway.void(authorization)
 
     assert_equal "360", void_response.params["response"]
-    assert_equal "No transaction found with specified litleTxnId", void_response.params["message"]
+    assert_equal "No transaction found with specified transaction Id", void_response.params["message"]
   end
 
   ### Order Ids 50 through 52 - Explicit card tokenization certification tests
