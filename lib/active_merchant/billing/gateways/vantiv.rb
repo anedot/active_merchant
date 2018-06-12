@@ -1052,7 +1052,7 @@ module ActiveMerchant #:nodoc:
           DEFAULT_HEADERS.merge(options[:headers])
         else
           DEFAULT_HEADERS
-        end
+        end.dup
       end
 
       # Private: Parse the response from the Vantiv gateway into a Hash
