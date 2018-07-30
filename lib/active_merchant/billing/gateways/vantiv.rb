@@ -71,6 +71,7 @@ module ActiveMerchant #:nodoc:
 
       DEFAULT_REPORT_GROUP = "Default Report Group"
 
+      ID_MAX_LENGTH = 36
       ORDER_ID_MAX_LENGTH = 24
 
       POS_CAPABILITY = "magstripe"
@@ -84,7 +85,7 @@ module ActiveMerchant #:nodoc:
         "802" # account number previously registered
       ].freeze
 
-      SCHEMA_VERSION = "9.4"
+      SCHEMA_VERSION = "11.4"
 
       SCRUBBED_PATTERNS = [
         %r((<user>).+(</user>)),
@@ -387,7 +388,8 @@ module ActiveMerchant #:nodoc:
         def transaction_attributes(options)
           attributes = {}
           attributes[:id] = truncate(options[:id] ||
-                                     options[:order_id], ORDER_ID_MAX_LENGTH)
+                                     options[:order_id] ||
+                                     SecureRandom.uuid, ID_MAX_LENGTH)
           attributes[:reportGroup] = options[:merchant] || DEFAULT_REPORT_GROUP
           attributes[:customerId] = options[:customer]
           attributes.delete_if { |_key, value| value.nil? }

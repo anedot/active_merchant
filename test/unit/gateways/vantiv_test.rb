@@ -1377,7 +1377,7 @@ class VantivTest < Test::Unit::TestCase
 
     def test_request_with_transaction_attributes_defaults
       stub_commit do |_, data, |
-        assert_no_match %r(id=".*"), data
+        assert_match %r(id=".*"), data
         assert_match(
           %r(reportGroup="#{VantivGateway::DEFAULT_REPORT_GROUP}"),
           data
