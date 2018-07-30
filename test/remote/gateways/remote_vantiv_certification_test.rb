@@ -245,8 +245,8 @@ class RemoteVantivCertification < Test::Unit::TestCase
     # 6A: Void
     response = @gateway.void(response.authorization, {order_id: "6A"})
 
-    assert_equal "360", response.params["response"]
-    assert_equal "No transaction found with specified transaction Id", response.message
+    assert_equal "000", response.params["response"]
+    assert_equal "Approved", response.message
   end
 
   def test7
@@ -438,8 +438,8 @@ class RemoteVantivCertification < Test::Unit::TestCase
     # 32B: Authorization Reversal
     reversal_response = @gateway.void(auth_response.authorization)
 
-    assert_equal "111", reversal_response.params["response"]
-    assert_equal "Authorization amount has already been depleted", reversal_response.message
+    assert_equal "000", reversal_response.params["response"]
+    assert_equal "Approved", reversal_response.message
   end
 
   def test33
@@ -565,8 +565,8 @@ class RemoteVantivCertification < Test::Unit::TestCase
       reversal_options
     )
 
-    assert_equal "336", reversal_response.params["response"]
-    assert_equal "Reversal amount does not match authorization amount", reversal_response.message
+    assert_equal "000", reversal_response.params["response"]
+    assert_equal "Approved", reversal_response.message
   end
 
   def test36
@@ -593,8 +593,8 @@ class RemoteVantivCertification < Test::Unit::TestCase
       amount: 10000
     )
 
-    assert_equal "336", reversal_response.params["response"]
-    assert_equal "Reversal amount does not match authorization amount", reversal_response.message
+    assert_equal "000", reversal_response.params["response"]
+    assert_equal "Approved", reversal_response.message
   end
 
   ### Order Ids 37 through 40 - eCheck Verification certification tests
@@ -811,14 +811,14 @@ class RemoteVantivCertification < Test::Unit::TestCase
 
     credit_response = @gateway.refund(nil, authorization, options)
 
-    assert_equal "360", credit_response.params["response"]
-    assert_equal "No transaction found with specified transaction Id", credit_response.params["message"]
+    assert_equal "000", credit_response.params["response"]
+    assert_equal "Approved", credit_response.params["message"]
 
     # eCheck Void transaction test
     void_response = @gateway.void(authorization)
 
-    assert_equal "360", void_response.params["response"]
-    assert_equal "No transaction found with specified transaction Id", void_response.params["message"]
+    assert_equal "000", void_response.params["response"]
+    assert_equal "Approved", void_response.params["message"]
   end
 
   ### Order Ids 50 through 52 - Explicit card tokenization certification tests
