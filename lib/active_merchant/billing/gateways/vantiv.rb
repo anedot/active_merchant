@@ -662,6 +662,8 @@ module ActiveMerchant #:nodoc:
             add_custom_billing(doc, options)
             add_pos(doc, payment_method)
             add_debt_repayment(doc, options)
+            add_original_transaction_id(doc, options)
+            add_processing_type(doc, options)
           end
         end
 
@@ -708,6 +710,7 @@ module ActiveMerchant #:nodoc:
         # Private: Add the authentication data to support tokenized cards
         def add_cardholder_authentication(doc, payment_method)
           return unless payment_method.is_a?(NetworkTokenizationCreditCard)
+          return unless payment_method.payment_cryptogram.present?
 
           doc.cardholderAuthentication do
             doc.authenticationValue(payment_method.payment_cryptogram)
@@ -746,6 +749,20 @@ module ActiveMerchant #:nodoc:
             doc.entryMode(POS_ENTRY_MODE)
             doc.cardholderId(POS_CARDHOLDER_ID)
           end
+        end
+
+        # Private: Add `processingType` node if present
+        def add_processing_type(doc, options)
+          return unless options[:processing_type].present?
+
+          doc.processingType(options[:processing_type])
+        end
+
+        # Private: Add `originalNetworkTransactionId` if present
+        def add_original_transaction_id(doc, options)
+          return unless options[:original_transaction_id].present?
+
+          doc.originalNetworkTransactionId(options[:original_transaction_id])
         end
 
         # Private: Helper to determine if the payment method has track data

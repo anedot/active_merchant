@@ -610,9 +610,23 @@ class VantivTest < Test::Unit::TestCase
 
     def test_purchase_with_apple_pay_payment_cryptogram
       stub_commit do |_, data, _|
-        assert_match(/BwABBJQ1AgAAAAAgJDUCAAAAAAA=/, data)
+        assert_match("<cardholderAuthentication>", data)
+        assert_match(
+          "<authenticationValue>BwABBJQ1AgAAAAAgJDUCAAAAAAA=",
+          data
+        )
       end
 
+      @gateway.purchase(@amount, @apple_pay)
+    end
+
+    def test_purchase_with_apple_pay_payment_cryptogram_missing
+      stub_commit do |_, data, _|
+        assert_no_match(%r(<cardholderAuthentication>), data)
+        assert_no_match(%r(<authenticationValue>), data)
+      end
+
+      @apple_pay.payment_cryptogram = nil
       @gateway.purchase(@amount, @apple_pay)
     end
 
@@ -657,6 +671,33 @@ class VantivTest < Test::Unit::TestCase
         @amount,
         @credit_card,
         order_source: "some-order-source"
+      )
+    end
+
+    def test_purchase_with_original_transaction_id
+      stub_commit do |_, data, _|
+        assert_match(
+          "<originalNetworkTransactionId>8201021030495950693030",
+          data
+        )
+      end
+
+      @gateway.purchase(
+        @amount,
+        @credit_card,
+        original_transaction_id: "8201021030495950693030"
+      )
+    end
+
+    def test_purchase_with_processing_type
+      stub_commit do |_, data, _|
+        assert_match("<processingType>initialRecurring</processingType", data)
+      end
+
+      @gateway.purchase(
+        @amount,
+        @credit_card,
+        processing_type: "initialRecurring"
       )
     end
 
